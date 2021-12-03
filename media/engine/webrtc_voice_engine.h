@@ -86,6 +86,16 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
 
   // Stops AEC dump.
   void StopAecDump() override;
+<<<<<<< HEAD
+=======
+    
+  void HandleAudioDeviceChange() override;
+    
+  // CST - set playout device
+  void SetAudioDevicePlayout(int16_t index) override;
+  //  CST - set Recording device
+  void SetAudioDeviceRecording(int16_t index) override;
+>>>>>>> 8e81ba627d... add change device API
 
  private:
   // Every option that is "set" will be applied. Every option not "set" will be

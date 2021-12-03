@@ -1510,9 +1510,16 @@ class RTC_EXPORT PeerConnectionFactoryInterface
   virtual bool StartAecDump(FILE* file, int64_t max_size_bytes) {
     return false;
   }
+        
+  // CST - set playout device
+  virtual void SetAudioDevicePlayout(int16_t index) = 0;
+  // CST - set Recording device
+  virtual void SetAudioDeviceRecording(int16_t index) = 0;
 
   // Stops logging the AEC dump.
   virtual void StopAecDump() = 0;
+
+  virtual void HandleAudioDeviceChange() = 0;
 
  protected:
   // Dtor and ctor protected as objects shouldn't be created or deleted via

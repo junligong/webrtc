@@ -51,6 +51,14 @@ PROXY_METHOD2(rtc::scoped_refptr<AudioTrackInterface>,
               AudioSourceInterface*)
 PROXY_SECONDARY_METHOD2(bool, StartAecDump, FILE*, int64_t)
 PROXY_SECONDARY_METHOD0(void, StopAecDump)
+
+PROXY_SECONDARY_METHOD0(void, HandleAudioDeviceChange)
+
+// CST - set playout device
+PROXY_METHOD1(void, SetAudioDevicePlayout, int16_t)
+// CST - set Recording device
+PROXY_METHOD1(void, SetAudioDeviceRecording, int16_t)
+
 END_PROXY_MAP()
 
 }  // namespace webrtc

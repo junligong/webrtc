@@ -286,6 +286,91 @@ WebRtcVoiceEngine::~WebRtcVoiceEngine() {
   }
 }
 
+<<<<<<< HEAD
+=======
+void WebRtcVoiceEngine::HandleAudioDeviceChange() {
+     RTC_DCHECK(worker_thread_checker_.IsCurrent());
+    RTC_LOG(LS_INFO) << "fjs: WebRtcVoiceEngine::HandleAudioDeviceChange";
+    
+    if (adm() == nullptr) return;
+    
+    adm()->StopPlayout();
+    adm()->StopRecording();
+    
+    adm()->InitSpeaker();
+    adm()->InitMicrophone();
+
+    if (!adm()->Playing()) {
+      if (adm()->InitPlayout() == 0) {
+        adm()->StartPlayout();
+      } else {
+        RTC_LOG(LS_ERROR) << "Failed to initialize playout.";
+      }
+    }
+
+    if (!adm()->Recording()) {
+      if (adm()->InitRecording() == 0) {
+        adm()->StartRecording();
+      } else {
+        RTC_LOG(LS_ERROR) << "Failed to initialize recording.";
+      }
+    }
+}
+
+// CST - set playout device
+void WebRtcVoiceEngine::SetAudioDevicePlayout(int16_t index){
+    
+    RTC_DCHECK(worker_thread_checker_.IsCurrent());
+    RTC_LOG(LS_INFO) << "hb: WebRtcVoiceEngine::SetAudioDevicePlayout";
+    
+    if (adm() == nullptr) {
+        RTC_LOG(LS_INFO) << "hb: adm not initialize";
+    }
+    
+    if (!adm()->PlayoutIsInitialized()) {
+        RTC_LOG(LS_INFO) << "hb: SetAudioDevicePlayout but Playout not initialize";
+        adm()->SetPlayoutDevice(index);
+    } else {
+        adm()->StopPlayout();
+        
+        adm()->SetPlayoutDevice(index);
+        
+        if (adm()->InitSpeaker() != 0) {
+            RTC_LOG(LS_ERROR) << "hb: Unable to access speaker.";
+        }
+
+        adm()->InitPlayout();
+        adm()->StartPlayout();
+    }
+}
+
+// CST - set playout device
+void WebRtcVoiceEngine::SetAudioDeviceRecording(int16_t index){
+    
+    RTC_DCHECK(worker_thread_checker_.IsCurrent());
+    RTC_LOG(LS_INFO) << "hb: WebRtcVoiceEngine::SetAudioDeviceRecording";
+    
+    if (adm() == nullptr) {
+        RTC_LOG(LS_INFO) << "hb: adm not initialize";
+    }
+    
+    if (!adm()->RecordingIsInitialized()) {
+        RTC_LOG(LS_INFO) << "hb: SetAudioDeviceRecording but Recording not initialize";
+        adm()->SetRecordingDevice(index);
+    } else {
+        adm()->StopRecording();
+        adm()->SetRecordingDevice(index);
+        
+        if (adm()->InitMicrophone() != 0) {
+            RTC_LOG(LS_ERROR) << "Unable to access Microphone.";
+        }
+        
+        adm()->InitRecording();
+        adm()->StartRecording();
+    }
+}
+
+>>>>>>> 8e81ba627d... add change device API
 void WebRtcVoiceEngine::Init() {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   RTC_LOG(LS_INFO) << "WebRtcVoiceEngine::Init";

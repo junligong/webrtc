@@ -307,4 +307,18 @@
   _hasStartedAecDump = NO;
 }
 
+- (void)handleAudioDeviceChange {
+    _nativeFactory->HandleAudioDeviceChange();
+}
+
+// CST - set playout d
+- (void)setAudioDevicePlayout:(int16_t)index {
+    _nativeFactory->SetAudioDevicePlayout(index);
+}
+
+// CST - set Recording device
+- (void)setAudioDeviceRecording:(int16_t)index {
+    _nativeFactory->SetAudioDeviceRecording(index);
+}
+
 @end

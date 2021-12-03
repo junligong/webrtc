@@ -92,6 +92,16 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
 
   bool StartAecDump(FILE* file, int64_t max_size_bytes) override;
   void StopAecDump() override;
+<<<<<<< HEAD
+=======
+    
+  void HandleAudioDeviceChange() override;
+    
+  // CST - set playout device
+  void SetAudioDevicePlayout(int16_t index) override;
+  // CST - set Recording device
+  void SetAudioDeviceRecording(int16_t index) override;
+>>>>>>> 8e81ba627d... add change device API
 
   SctpTransportFactoryInterface* sctp_transport_factory() {
     return context_->sctp_transport_factory();

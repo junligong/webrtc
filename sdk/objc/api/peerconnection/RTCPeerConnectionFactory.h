@@ -84,6 +84,15 @@ RTC_OBJC_EXPORT
 /* Stop an active AecDump recording */
 - (void)stopAecDump;
 
+- (void)handleAudioDeviceChange;
+
+/// set index 0 change to default device
+
+// CST - set playout d
+- (void)setAudioDevicePlayout:(int16_t)index;
+// CST - set Recording device
+- (void)setAudioDeviceRecording:(int16_t)index;
+
 @end
 
 NS_ASSUME_NONNULL_END

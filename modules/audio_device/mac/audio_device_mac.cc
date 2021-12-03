@@ -2056,10 +2056,13 @@ int32_t AudioDeviceMac::HandleStreamFormatChange(
 
     // Recreate the converter with the new format
     // TODO(xians): make this thread safe
-    WEBRTC_CA_RETURN_ON_ERR(AudioConverterDispose(_captureConverter));
-
-    WEBRTC_CA_RETURN_ON_ERR(AudioConverterNew(&streamFormat, &_inDesiredFormat,
-                                              &_captureConverter));
+      
+    // CST - fix _captureConverter thread safe
+    AtomicSet32(&_isFormatChange, 1);
+//    WEBRTC_CA_RETURN_ON_ERR(AudioConverterDispose(_captureConverter));
+//
+//    WEBRTC_CA_RETURN_ON_ERR(AudioConverterNew(&streamFormat, &_inDesiredFormat,
+//                                              &_captureConverter));
   } else {
     memcpy(&_outStreamFormat, &streamFormat, sizeof(streamFormat));
 
@@ -2452,7 +2455,15 @@ bool AudioDeviceMac::CaptureWorkerThread() {
   engineBuffer.mBuffers->mDataByteSize =
       _inDesiredFormat.mBytesPerPacket * noRecSamples;
   engineBuffer.mBuffers->mData = recordBuffer;
-
+  // CST - fix _captureConverter thread safe
+  int32_t isFormatChange = AtomicGet32(&_isFormatChange);
+  if (isFormatChange == 1) {
+      WEBRTC_CA_RETURN_ON_ERR(AudioConverterDispose(_captureConverter));
+      WEBRTC_CA_RETURN_ON_ERR(AudioConverterNew(&_inStreamFormat, &_inDesiredFormat,
+                                                      &_captureConverter));
+      AtomicSet32(&_isFormatChange, 0);
+  }
+    
   err = AudioConverterFillComplexBuffer(_captureConverter, inConverterProc,
                                         this, &size, &engineBuffer, NULL);
   if (err != noErr) {

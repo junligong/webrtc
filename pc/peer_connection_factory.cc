@@ -186,6 +186,27 @@ void PeerConnectionFactory::StopAecDump() {
   channel_manager()->StopAecDump();
 }
 
+<<<<<<< HEAD
+=======
+void PeerConnectionFactory::HandleAudioDeviceChange() {
+    RTC_DCHECK(signaling_thread()->IsCurrent());
+    channel_manager()->HandleAudioDeviceChange();
+}
+
+// CST - set playout device
+void PeerConnectionFactory::SetAudioDevicePlayout(int16_t index) {
+    RTC_DCHECK(signaling_thread()->IsCurrent());
+    channel_manager()->SetAudioDevicePlayout(index);
+}
+
+// CST - set Recording device
+void PeerConnectionFactory::SetAudioDeviceRecording(int16_t index) {
+    RTC_DCHECK(signaling_thread()->IsCurrent());
+    channel_manager()->SetAudioDeviceRecording(index);
+}
+
+
+>>>>>>> 8e81ba627d... add change device API
 RTCErrorOr<rtc::scoped_refptr<PeerConnectionInterface>>
 PeerConnectionFactory::CreatePeerConnectionOrError(
     const PeerConnectionInterface::RTCConfiguration& configuration,

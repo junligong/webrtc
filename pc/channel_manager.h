@@ -115,6 +115,16 @@ class ChannelManager final {
 
   // Stops recording AEC dump.
   void StopAecDump();
+<<<<<<< HEAD
+=======
+    
+  void HandleAudioDeviceChange();
+    
+  // CST - set playout device
+  void SetAudioDevicePlayout(int16_t index);
+  // CST - set Recording device
+  void SetAudioDeviceRecording(int16_t index);
+>>>>>>> 8e81ba627d... add change device API
 
  private:
   ChannelManager(std::unique_ptr<MediaEngineInterface> media_engine,

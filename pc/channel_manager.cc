@@ -273,4 +273,26 @@ void ChannelManager::StopAecDump() {
   media_engine_->voice().StopAecDump();
 }
 
+<<<<<<< HEAD
+=======
+void ChannelManager::HandleAudioDeviceChange() {
+    worker_thread_->Invoke<void>(RTC_FROM_HERE,
+    [&] { media_engine_->voice().HandleAudioDeviceChange(); });
+}
+
+// CST - set playout device
+void ChannelManager::SetAudioDevicePlayout(int16_t index) {
+    worker_thread_->Invoke<void>(RTC_FROM_HERE,
+    [&] { media_engine_->voice().SetAudioDevicePlayout(index); });
+}
+
+// CST - set Recording device
+void ChannelManager::SetAudioDeviceRecording(int16_t index) {
+    worker_thread_->Invoke<void>(RTC_FROM_HERE,
+    [&] { media_engine_->voice().SetAudioDeviceRecording(index); });
+}
+
+
+
+>>>>>>> 8e81ba627d... add change device API
 }  // namespace cricket

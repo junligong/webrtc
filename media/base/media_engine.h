@@ -91,6 +91,16 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
 
   // Stops recording AEC dump.
   virtual void StopAecDump() = 0;
+<<<<<<< HEAD
+=======
+    
+  virtual void HandleAudioDeviceChange() = 0;
+    
+  // CST - set playout device
+  virtual void SetAudioDevicePlayout(int16_t index) = 0;
+  // CST - set Recording device
+  virtual void SetAudioDeviceRecording(int16_t index) = 0;
+>>>>>>> 8e81ba627d... add change device API
 };
 
 class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {

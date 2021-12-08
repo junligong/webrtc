@@ -164,7 +164,7 @@ void VideoDecoderWrapper::OnDecodedFrame(
       if (frame_extra_infos_.empty()) {
         RTC_LOG(LS_WARNING)
             << "Java decoder produced an unexpected frame: " << timestamp_ns;
-        return;
+        break;
       }
 
       frame_extra_info = frame_extra_infos_.front();
@@ -186,8 +186,10 @@ void VideoDecoderWrapper::OnDecodedFrame(
   // If the decoder provides QP values itself, no need to parse the bitstream.
   // Enable QP parsing if decoder does not provide QP values itself.
   qp_parsing_enabled_ = !decoder_qp.has_value();
-  callback_->Decoded(frame, decoding_time_ms,
+  if (callback_) {
+    callback_->Decoded(frame, decoding_time_ms,
                      decoder_qp ? decoder_qp : frame_extra_info.qp);
+  }
 }
 
 VideoDecoderWrapper::FrameExtraInfo::FrameExtraInfo() = default;

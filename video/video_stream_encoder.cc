@@ -49,6 +49,7 @@
 #include "system_wrappers/include/field_trial.h"
 #include "video/adaptation/video_stream_encoder_resource_manager.h"
 #include "video/alignment_adjuster.h"
+#include "media/engine/encoder_simulcast_proxy.h"
 
 namespace webrtc {
 
@@ -853,8 +854,9 @@ void VideoStreamEncoder::ReconfigureEncoder() {
     // supports only single instance of encoder of given type.
     encoder_.reset();
 
-    encoder_ = settings_.encoder_factory->CreateVideoEncoder(
-        encoder_config_.video_format);
+    VideoEncoder* simulcastEncoder = new EncoderSimulcastProxy(settings_.encoder_factory, encoder_config_.video_format);
+    encoder_ = std::unique_ptr<VideoEncoder>(simulcastEncoder);
+
     // TODO(nisse): What to do if creating the encoder fails? Crash,
     // or just discard incoming frames?
     RTC_CHECK(encoder_);

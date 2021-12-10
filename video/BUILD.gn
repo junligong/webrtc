@@ -84,6 +84,7 @@ rtc_library("video") {
     "../call:rtp_sender",
     "../call:video_stream_api",
     "../common_video",
+    "../media:rtc_encoder_simulcast_proxy",
     "../modules:module_api",
     "../modules:module_api_public",
     "../modules/pacing",

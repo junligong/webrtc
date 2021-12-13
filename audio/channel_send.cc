@@ -46,6 +46,7 @@
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
+#include "api/crypto/crystal_packet_observer.h"
 
 namespace webrtc {
 namespace voe {
@@ -383,27 +384,18 @@ int32_t ChannelSend::SendRtpAudio(AudioFrameType frameType,
   // TODO(minyue): see whether DTMF packets should be encrypted or not. In
   // current implementation, they are not.
   if (!payload.empty()) {
-    if (frame_encryptor_ != nullptr) {
-      // TODO(benwright@webrtc.org) - Allocate enough to always encrypt inline.
-      // Allocate a buffer to hold the maximum possible encrypted payload.
-      size_t max_ciphertext_size = frame_encryptor_->GetMaxCiphertextByteSize(
-          cricket::MEDIA_TYPE_AUDIO, payload.size());
-      encrypted_audio_payload.SetSize(max_ciphertext_size);
+    if (packet_observer != nullptr) {
+      size_t payload_size = payload.size();
+      const unsigned char *buffer = &payload[0];
+      crystal::rtc::Packet packet{buffer, payload_size};
+      packet_observer->onSendAudioPacket(packet);
+      encrypted_audio_payload.SetSize(packet.size);
 
-      // Encrypt the audio payload into the buffer.
-      size_t bytes_written = 0;
-      int encrypt_status = frame_encryptor_->Encrypt(
-          cricket::MEDIA_TYPE_AUDIO, rtp_rtcp_->SSRC(),
-          /*additional_data=*/nullptr, payload, encrypted_audio_payload,
-          &bytes_written);
-      if (encrypt_status != 0) {
-        RTC_DLOG(LS_ERROR)
-            << "Channel::SendData() failed encrypt audio payload: "
-            << encrypt_status;
-        return -1;
+      const unsigned char *encryptedBuffer = packet.buffer;
+      for (size_t i = 0; i < packet.size; encryptedBuffer++, i++) {
+        encrypted_audio_payload[i] = *encryptedBuffer;
       }
-      // Resize the buffer to the exact number of bytes actually used.
-      encrypted_audio_payload.SetSize(bytes_written);
+
       // Rewrite the payloadData and size to the new encrypted payload.
       payload = encrypted_audio_payload;
     } else if (crypto_options_.sframe.require_frame_encryption) {

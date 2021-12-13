@@ -13,6 +13,7 @@ group("crypto") {
     ":frame_decryptor_interface",
     ":frame_encryptor_interface",
     ":options",
+    ":crystal_packet_observer",
   ]
 }
 
@@ -45,5 +46,17 @@ rtc_source_set("frame_encryptor_interface") {
     "..:array_view",
     "..:rtp_parameters",
     "../../rtc_base:refcount",
+  ]
+}
+
+rtc_source_set("crystal_packet_observer") {
+  visibility = [ "*" ]
+  sources = [
+    "crystal_packet_observer.h",
+    "crystal_packet_observer_register.h",
+    "crystal_packet_observer_register.cc",
+  ]
+  deps = [
+
   ]
 }

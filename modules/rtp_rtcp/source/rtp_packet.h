@@ -148,6 +148,8 @@ class RtpPacket {
   // Returns debug string of RTP packet (without detailed extension info).
   std::string ToString() const;
 
+  const uint8_t* GetAt(size_t offset) const { return buffer_.data() + offset; }
+
  private:
   struct ExtensionInfo {
     explicit ExtensionInfo(uint8_t id) : ExtensionInfo(id, 0, 0) {}

@@ -50,6 +50,7 @@
 #include "system_wrappers/include/metrics.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "video/receive_statistics_proxy2.h"
+#include "api/crypto/crystal_packet_observer.h"
 
 namespace webrtc {
 
@@ -934,8 +935,30 @@ void RtpVideoStreamReceiver2::ManageFrame(
   reference_finder_->ManageFrame(std::move(frame));
 }
 
-void RtpVideoStreamReceiver2::ReceivePacket(const RtpPacketReceived& packet) {
+void RtpVideoStreamReceiver2::ReceivePacket(const RtpPacketReceived& old_packet) {
   RTC_DCHECK_RUN_ON(&worker_task_checker_);
+
+  RtpPacketReceived packet(old_packet);
+  //E2EE处理,skip_size是为了在H264编解码的时候，避免把NALU给加密掉
+  size_t skip_size = 10;
+  size_t origin_payload_size = packet.payload_size();
+    
+  if (packet_observer && origin_payload_size > skip_size && packet.PayloadType() != 127) {
+    size_t decrypt_offset = packet.headers_size() + skip_size;
+    size_t decrypt_payload_size = origin_payload_size - skip_size;
+        
+    const unsigned char *buffer = packet.GetAt(decrypt_offset);
+    crystal::rtc::Packet crypto_packet{buffer, decrypt_payload_size};
+    packet_observer->onReceiveVideoPacket(crypto_packet);
+        
+    uint8_t* packet_payload = packet.SetPayloadSize(skip_size + crypto_packet.size) + skip_size;
+    
+    for (size_t i = 0; i < crypto_packet.size; packet_payload++, crypto_packet.buffer++, i++) {
+      *packet_payload = *crypto_packet.buffer;
+    }
+  }
+
+
   if (packet.payload_size() == 0) {
     // Padding or keep-alive packet.
     // TODO(nisse): Could drop empty packets earlier, but need to figure out how

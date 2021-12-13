@@ -40,6 +40,7 @@
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/trace_event.h"
+#include "api/crypto/crystal_packet_observer.h"
 
 namespace webrtc {
 
@@ -509,7 +510,12 @@ bool RTPSenderVideo::SendVideo(
   // Extra space left in case packet will be resent using fec or rtx.
   int packet_capacity = rtp_sender_->MaxRtpPacketSize() -
                         (use_fec ? FecPacketOverhead() : 0) -
-                        (rtp_sender_->RtxStatus() ? kRtxHeaderSize : 0);
+                        (rtp_sender_->RtxStatus() ? kRtxHeaderSize : 0);                      
+  if(packet_observer) {
+    // 需要减掉AES用于padding的字节
+    packet_capacity -= 16; 
+  }
+
 
   std::unique_ptr<RtpPacketToSend> single_packet =
       rtp_sender_->AllocatePacket();
@@ -660,6 +666,25 @@ bool RTPSenderVideo::SendVideo(
     // Put packetization finish timestamp into extension.
     if (packet->HasExtension<VideoTimingExtension>()) {
       packet->set_packetization_finish_time_ms(clock_->TimeInMilliseconds());
+    }
+
+    //E2EE处理,skip_size是为了在H264编解码的时候，避免把NALU给加密掉
+    size_t skip_size = 10;
+    size_t origin_payload_size = packet->payload_size();
+      
+    if (packet_observer && origin_payload_size > skip_size && packet->PayloadType() != 127) {
+      size_t encrypt_offset = packet->headers_size() + skip_size;
+      size_t encrypt_payload_size = origin_payload_size - skip_size;
+          
+      const unsigned char *buffer = packet->GetAt(encrypt_offset);
+      crystal::rtc::Packet crypto_packet{buffer, encrypt_payload_size};
+      packet_observer->onSendVideoPacket(crypto_packet);
+
+      uint8_t* packet_payload = packet->SetPayloadSize(skip_size + crypto_packet.size) + skip_size;
+          
+      for (size_t i = 0; i < crypto_packet.size; packet_payload++, crypto_packet.buffer++, i++) {
+        *packet_payload = *crypto_packet.buffer;
+      }
     }
 
     packet->set_fec_protect_packet(use_fec);

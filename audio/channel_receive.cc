@@ -50,6 +50,7 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/time_utils.h"
 #include "system_wrappers/include/metrics.h"
+#include "api/crypto/crystal_packet_observer.h"
 
 namespace webrtc {
 namespace voe {
@@ -659,25 +660,13 @@ void ChannelReceive::ReceivePacket(const uint8_t* packet,
   // E2EE Custom Audio Frame Decryption (This is optional).
   // Keep this buffer around for the lifetime of the OnReceivedPayloadData call.
   rtc::Buffer decrypted_audio_payload;
-  if (frame_decryptor_ != nullptr) {
-    const size_t max_plaintext_size = frame_decryptor_->GetMaxPlaintextByteSize(
-        cricket::MEDIA_TYPE_AUDIO, payload_length);
-    decrypted_audio_payload.SetSize(max_plaintext_size);
+  if (packet_observer != nullptr) {
+    crystal::rtc::Packet packet{payload, payload_data_length};
+    packet_observer->onReceiveAudioPacket(packet);
+    decrypted_audio_payload.SetSize(packet.size);
 
-    const std::vector<uint32_t> csrcs(header.arrOfCSRCs,
-                                      header.arrOfCSRCs + header.numCSRCs);
-    const FrameDecryptorInterface::Result decrypt_result =
-        frame_decryptor_->Decrypt(
-            cricket::MEDIA_TYPE_AUDIO, csrcs,
-            /*additional_data=*/nullptr,
-            rtc::ArrayView<const uint8_t>(payload, payload_data_length),
-            decrypted_audio_payload);
-
-    if (decrypt_result.IsOk()) {
-      decrypted_audio_payload.SetSize(decrypt_result.bytes_written);
-    } else {
-      // Interpret failures as a silent frame.
-      decrypted_audio_payload.SetSize(0);
+    for(size_t i = 0; i < packet.size; packet.buffer++, i++) {
+        decrypted_audio_payload[i] = *packet.buffer;
     }
 
     payload = decrypted_audio_payload.data();

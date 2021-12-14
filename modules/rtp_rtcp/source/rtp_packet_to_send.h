@@ -24,6 +24,11 @@
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 
+template <class T>
+std::unique_ptr<T> copy_unique(const std::unique_ptr<T>& source) {
+  return source ? std::make_unique<T>(*source) : nullptr;
+}
+
 namespace webrtc {
 // Class to hold rtp packet with metadata for sender side.
 // The metadata is not send over the wire, but packet sender may use it to

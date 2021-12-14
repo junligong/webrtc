@@ -33,6 +33,7 @@
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/rate_limiter.h"
 #include "rtc_base/time_utils.h"
+#include "rtc_base/crystal/audio_strategy.h"
 
 namespace webrtc {
 
@@ -498,6 +499,14 @@ bool RTPSender::SendToNetwork(std::unique_ptr<RtpPacketToSend> packet) {
   }
 
   std::vector<std::unique_ptr<RtpPacketToSend>> packets;
+  if (packet->packet_type() == RtpPacketMediaType::kAudio) {
+    int nCount = AudioStrategy::getInstance()->GetAudioResendCount();
+    for (int i = 0; i < nCount; ++i) {
+      std::unique_ptr<RtpPacketToSend> resenPacket = copy_unique(packet);
+      packets.emplace_back(std::move(resenPacket));
+    }
+  }
+
   packets.emplace_back(std::move(packet));
   paced_sender_->EnqueuePackets(std::move(packets));
 

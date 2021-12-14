@@ -1026,6 +1026,10 @@ rtc_library("rtc_base") {
     "stream.h",
     "unique_id_generator.cc",
     "unique_id_generator.h",
+    "crystal/rtc_singleton.h",
+    "crystal/audio_strategy.h",
+    "crystal/audio_strategy.cc",
+
   ]
 
   # If we are building the SSL library ourselves, we know it's BoringSSL.

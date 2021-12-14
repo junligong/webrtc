@@ -52,6 +52,7 @@
 #include "rtc_base/third_party/base64/base64.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/metrics.h"
+#include "rtc_base/crystal/audio_strategy.h"
 
 #if WEBRTC_ENABLE_PROTOBUF
 RTC_PUSH_IGNORING_WUNDEF()
@@ -774,6 +775,7 @@ class WebRtcVoiceMediaChannel::WebRtcAudioSendStream
         rtp_parameters_(CreateRtpParametersWithOneEncoding()) {
     RTC_DCHECK(call);
     RTC_DCHECK(encoder_factory);
+    AudioStrategy::getInstance()->SetAudioSsrc(ssrc);
     config_.rtp.ssrc = ssrc;
     config_.rtp.mid = mid;
     config_.rtp.c_name = c_name;

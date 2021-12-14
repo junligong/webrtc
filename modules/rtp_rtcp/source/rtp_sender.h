@@ -198,6 +198,7 @@ class RTPSender {
   RtpPacketHistory* const packet_history_;
   RtpPacketSender* const paced_sender_;
 
+  std::unique_ptr<RtpPacketToSend> last_audio_packet;
   mutable Mutex send_mutex_;
 
   bool sending_media_ RTC_GUARDED_BY(send_mutex_);

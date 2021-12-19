@@ -38,6 +38,8 @@
 #include "sdk/objc/components/video_codec/nalu_rewriter.h"
 #include "third_party/libyuv/include/libyuv/convert_from.h"
 
+static const char *kLogTagForH264 = "kLogTagForH264";
+
 @interface RTC_OBJC_TYPE (RTCVideoEncoderH264)
 ()
 
@@ -327,6 +329,7 @@ NSUInteger GetMaxSampleRate(const webrtc::H264ProfileLevelId &profile_level_id) 
 
   webrtc::H264BitstreamParser _h264BitstreamParser;
   std::vector<uint8_t> _frameScaleBuffer;
+  BOOL _isDestroy;
 }
 
 // .5 is set as a mininum to prevent overcompensating for large temporary
@@ -346,12 +349,15 @@ NSUInteger GetMaxSampleRate(const webrtc::H264ProfileLevelId &profile_level_id) 
     RTC_DCHECK(_profile_level_id);
     RTC_LOG(LS_INFO) << "Using profile " << CFStringToString(ExtractProfile(*_profile_level_id));
     RTC_CHECK([codecInfo.name isEqualToString:kRTCVideoCodecH264Name]);
+
+    RTC_LOG(LS_INFO) << kLogTagForH264 << " " << (__bridge void *)self << "RTCVideoEncoderH264 init";
   }
   return self;
 }
 
 - (void)dealloc {
   [self destroyCompressionSession];
+  RTC_LOG(LS_INFO) << kLogTagForH264 << " " << (__bridge void *)self << "RTCVideoEncoderH264 dealloc";
 }
 
 - (NSInteger)startEncodeWithSettings:(RTC_OBJC_TYPE(RTCVideoEncoderSettings) *)settings
@@ -387,8 +393,15 @@ NSUInteger GetMaxSampleRate(const webrtc::H264ProfileLevelId &profile_level_id) 
 - (NSInteger)encode:(RTC_OBJC_TYPE(RTCVideoFrame) *)frame
     codecSpecificInfo:(nullable id<RTC_OBJC_TYPE(RTCCodecSpecificInfo)>)codecSpecificInfo
            frameTypes:(NSArray<NSNumber *> *)frameTypes {
-  RTC_DCHECK_EQ(frame.width, _width);
-  RTC_DCHECK_EQ(frame.height, _height);
+  //@fujisheng: 先暂时注释
+  // RTC_DCHECK_EQ(frame.width, _width);
+  // RTC_DCHECK_EQ(frame.height, _height);
+
+  if (!frame) {
+        RTC_LOG(LS_ERROR) << "Encoder frame is nil...";
+        return WEBRTC_VIDEO_CODEC_ENCODER_FAILURE;
+  }
+
   if (!_callback || !_compressionSession) {
     return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
   }
@@ -535,6 +548,8 @@ NSUInteger GetMaxSampleRate(const webrtc::H264ProfileLevelId &profile_level_id) 
   // Need to destroy so that the session is invalidated and won't use the
   // callback anymore. Do not remove callback until the session is invalidated
   // since async encoder callbacks can occur until invalidation.
+  //@fujisheng: 加个销毁的标志
+    _isDestroy = YES;
   [self destroyCompressionSession];
   _callback = nullptr;
   return WEBRTC_VIDEO_CODEC_OK;
@@ -666,6 +681,9 @@ NSUInteger GetMaxSampleRate(const webrtc::H264ProfileLevelId &profile_level_id) 
   // pool should be reset as well.
   _pixelBufferPool = VTCompressionSessionGetPixelBufferPool(_compressionSession);
 
+  //@fujisheng: 预先给编码器分配一些资源，解决第一帧长时间编码没有回来的情况，导致采集buffer溢出
+  VTCompressionSessionPrepareToEncodeFrames(_compressionSession);
+
   return WEBRTC_VIDEO_CODEC_OK;
 }
 
@@ -693,6 +711,7 @@ NSUInteger GetMaxSampleRate(const webrtc::H264ProfileLevelId &profile_level_id) 
 
 - (void)destroyCompressionSession {
   if (_compressionSession) {
+    VTCompressionSessionCompleteFrames(_compressionSession, kCMTimeInvalid);
     VTCompressionSessionInvalidate(_compressionSession);
     CFRelease(_compressionSession);
     _compressionSession = nullptr;
@@ -805,12 +824,15 @@ NSUInteger GetMaxSampleRate(const webrtc::H264ProfileLevelId &profile_level_id) 
   _h264BitstreamParser.ParseBitstream(*buffer);
   frame.qp = @(_h264BitstreamParser.GetLastSliceQp().value_or(-1));
 
-  BOOL res = _callback(frame, codecSpecificInfo);
-  if (!res) {
-    RTC_LOG(LS_ERROR) << "Encode callback failed";
-    return;
+  //@fujisheng 加个判空，防止编码器销毁以后，还做编码处理导致crash
+  if (_callback != nullptr && !_isDestroy) {
+      BOOL res = _callback(frame, codecSpecificInfo);
+      if (!res) {
+        RTC_LOG(LS_ERROR) << "Encode callback failed";
+        return;
+      }
+      _bitrateAdjuster->Update(frame.buffer.length);
   }
-  _bitrateAdjuster->Update(frame.buffer.length);
 }
 
 - (nullable RTC_OBJC_TYPE(RTCVideoEncoderQpThresholds) *)scalingSettings {

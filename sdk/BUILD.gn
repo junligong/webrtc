@@ -518,6 +518,7 @@ if (is_ios || is_mac) {
         allow_poison = [
           "audio_codecs",  # TODO(bugs.webrtc.org/8396): Remove.
           "default_task_queue",
+          "software_video_codecs",
         ]
         sources = [
           "objc/components/renderer/metal/RTCMTLI420Renderer.h",
@@ -736,6 +737,7 @@ if (is_ios || is_mac) {
       allow_poison = [
         "audio_codecs",  # TODO(bugs.webrtc.org/8396): Remove.
         "default_task_queue",
+        "software_video_codecs"
       ]
       defines = [ "HAVE_NO_MEDIA" ]
 
@@ -849,6 +851,7 @@ if (is_ios || is_mac) {
       allow_poison = [
         "audio_codecs",  # TODO(bugs.webrtc.org/8396): Remove.
         "default_task_queue",
+        "software_video_codecs", # @fujisheng
       ]
       configs += [
         "..:no_exit_time_destructors",
@@ -1006,6 +1009,9 @@ if (is_ios || is_mac) {
         "../rtc_base:network_constants",
         "../system_wrappers:field_trial",
         "../system_wrappers:metrics",
+        # @fujisheng
+        "../api/video_codecs:builtin_video_decoder_factory",
+        "../api/video_codecs:builtin_video_encoder_factory",
       ]
 
       if (is_ios) {

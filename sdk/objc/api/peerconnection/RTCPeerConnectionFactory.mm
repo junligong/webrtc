@@ -35,6 +35,8 @@
 // is not smart enough to take the #ifdef into account.
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"     // nogncheck
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"     // nogncheck
+#include "api/video_codecs/builtin_video_encoder_factory.h"
+#include "api/video_codecs/builtin_video_decoder_factory.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/transport/field_trial_based_config.h"
@@ -79,16 +81,36 @@
 #ifdef HAVE_NO_MEDIA
   return [self initWithNoMedia];
 #else
-  return [self
-      initWithNativeAudioEncoderFactory:webrtc::CreateBuiltinAudioEncoderFactory()
-              nativeAudioDecoderFactory:webrtc::CreateBuiltinAudioDecoderFactory()
-              nativeVideoEncoderFactory:webrtc::ObjCToNativeVideoEncoderFactory([[RTC_OBJC_TYPE(
-                                            RTCVideoEncoderFactoryH264) alloc] init])
-              nativeVideoDecoderFactory:webrtc::ObjCToNativeVideoDecoderFactory([[RTC_OBJC_TYPE(
-                                            RTCVideoDecoderFactoryH264) alloc] init])
-                      audioDeviceModule:[self audioDeviceModule]
-                  audioProcessingModule:nullptr];
+  return [self intWithVideoEncoderUseH264:NO videoDecoderUserH264:NO];
 #endif
+}
+
+- (instancetype)intWithVideoEncoderUseH264:(BOOL)isVideoEncoderUseH264
+                      videoDecoderUserH264:(BOOL)isVideoDecoderUserH264 {
+    
+    std::unique_ptr<webrtc::VideoEncoderFactory> native_encoder_factory;
+    std::unique_ptr<webrtc::VideoDecoderFactory> native_decoder_factory;
+    if (isVideoEncoderUseH264) {
+        native_encoder_factory = webrtc::CreateBuiltinVideoEncoderFactory();
+    } else {
+        native_encoder_factory = webrtc::ObjCToNativeVideoEncoderFactory([[RTC_OBJC_TYPE(
+                                                                                         RTCVideoEncoderFactoryH264) alloc] init]);
+    }
+    
+    if (isVideoDecoderUserH264) {
+        native_decoder_factory = webrtc::CreateBuiltinVideoDecoderFactory();
+    } else {
+        native_decoder_factory = webrtc::ObjCToNativeVideoDecoderFactory([[RTC_OBJC_TYPE(
+                                                                                         RTCVideoDecoderFactoryH264) alloc] init]);
+    }
+    
+    return [self
+        initWithNativeAudioEncoderFactory:webrtc::CreateBuiltinAudioEncoderFactory()
+                nativeAudioDecoderFactory:webrtc::CreateBuiltinAudioDecoderFactory()
+                nativeVideoEncoderFactory:std::move(native_encoder_factory)
+                nativeVideoDecoderFactory:std::move(native_decoder_factory)
+                        audioDeviceModule:[self audioDeviceModule]
+                    audioProcessingModule:nullptr];
 }
 
 - (instancetype)

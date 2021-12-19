@@ -33,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface RTC_OBJC_TYPE (RTCPeerConnectionFactory)
 ()
 
-    - (instancetype)initNative NS_DESIGNATED_INITIALIZER;
+    // - (instancetype)initNative NS_DESIGNATED_INITIALIZER;
 
 /* Initializer used when WebRTC is compiled with no media support */
 - (instancetype)initWithNoMedia;

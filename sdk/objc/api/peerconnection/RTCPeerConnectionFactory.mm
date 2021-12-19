@@ -321,4 +321,8 @@
     _nativeFactory->SetAudioDeviceRecording(index);
 }
 
+- (NSValue *)getNativeFactory {
+    return [NSValue valueWithPointer:_nativeFactory.get()];
+}
+
 @end

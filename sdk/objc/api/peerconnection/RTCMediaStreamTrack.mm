@@ -139,6 +139,15 @@ NSString * const kRTCMediaStreamTrackKindVideo =
   }
 }
 
++ (RTC_OBJC_TYPE(RTCMediaStreamTrack) *)mediaTrackForTempNativeTrack:(void *)nativeTrack
+                                                             factory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory {
+    NSParameterAssert(nativeTrack);
+    NSParameterAssert(factory);
+    
+    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track(static_cast<webrtc::MediaStreamTrackInterface *>(nativeTrack));
+    return [self mediaTrackForNativeTrack:track factory:factory];
+}
+
 + (RTC_OBJC_TYPE(RTCMediaStreamTrack) *)
     mediaTrackForNativeTrack:(rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>)nativeTrack
                      factory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory {

@@ -93,6 +93,8 @@ RTC_OBJC_EXPORT
 // CST - set Recording device
 - (void)setAudioDeviceRecording:(int16_t)index;
 
+- (NSValue *)getNativeFactory;
+
 @end
 
 NS_ASSUME_NONNULL_END

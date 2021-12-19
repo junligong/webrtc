@@ -12,6 +12,8 @@
 
 #import "RTCMacros.h"
 
+@class RTCPeerConnectionFactory;
+
 /**
  * Represents the state of the track. This exposes the same states in C++.
  */
@@ -44,6 +46,10 @@ RTC_OBJC_EXPORT
 @property(nonatomic, readonly) RTCMediaStreamTrackState readyState;
 
 - (instancetype)init NS_UNAVAILABLE;
+
+//nativeTrack: rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>
++ (RTC_OBJC_TYPE(RTCMediaStreamTrack) *)mediaTrackForTempNativeTrack:(void *)nativeTrack
+                                                             factory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory;
 
 @end
 

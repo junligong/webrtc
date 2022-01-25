@@ -259,6 +259,8 @@ Connection* UDPPort::CreateConnection(const Candidate& address,
     return nullptr;
   }
 
+  //TODO: @fujisheng 适配ipv6 (安卓端需要注释这个判断）: 但是注释会导致另一个ICE连接超时的问题，
+  //就是会影响ipv4的环境可能会有问题
   if (!IsCompatibleAddress(address.address())) {
     return nullptr;
   }

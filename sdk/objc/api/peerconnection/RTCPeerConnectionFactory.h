@@ -46,6 +46,11 @@ NS_ASSUME_NONNULL_BEGIN
           numChannels:(size_t)numChannels
         samplesPerSec:(uint32_t)samplesPerSec;
 
+/// Calculate the relative ratio from the RMS of each channel
+/// audioLevel 0~1
+/// Execute once in 50ms
+- (void)onCaptureAudioLevel:(float)audioLevel;
+
 @end
 
 RTC_OBJC_EXPORT
@@ -61,7 +66,7 @@ RTC_OBJC_EXPORT
 /* Initialize object with default H264 video encoder/decoder factories and audio data listener */
 - (instancetype)intWithVideoEncoderUseH264:(BOOL)isVideoEncoderUseH264
                       videoDecoderUserH264:(BOOL)isVideoDecoderUserH264
-                              dataObserver:(id<RTCAudioDataObserver> _Nullable)observer API_UNAVAILABLE(ios);
+                              dataObserver:(id<RTCAudioDataObserver> _Nullable)observer;
 
 /* Initialize object with injectable video encoder/decoder factories */
 - (instancetype)

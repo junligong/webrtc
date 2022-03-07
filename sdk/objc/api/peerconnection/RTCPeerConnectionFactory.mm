@@ -61,6 +61,9 @@
 // API layer.
 #include "media/engine/webrtc_media_engine.h"  // nogncheck
 
+static const float kMaxSquaredLevel = 32768 * 32768;
+//constexpr float kMinLevel = 40.f;
+
 class CSTAudioDeviceDataImp : public webrtc::AudioDeviceDataObserver {
 public:
     __weak id<RTCAudioDataObserver> _observer;
@@ -73,6 +76,20 @@ public:
         if (_observer && [_observer respondsToSelector:@selector(onCaptureData:numSamples:bytesPerSample:numChannels:samplesPerSec:)]) {
             [_observer onCaptureData:audio_samples numSamples:num_samples bytesPerSample:bytes_per_sample numChannels:num_channels samplesPerSec:samples_per_sec];
         }
+        
+        if (_observer && [_observer respondsToSelector:@selector(onCaptureAudioLevel:)]) {
+            if (volumeCallbackBufferCount % 5 == 0) {
+                volumeCallbackBufferCount = 0;
+                if (bytes_per_sample == sizeof(int16_t)) {
+                    float audioLevel = Process((const int16_t *)audio_samples, num_samples);
+                    [_observer onCaptureAudioLevel:audioLevel];
+                } else {
+                    // not support
+                }
+            }
+        }
+        
+        volumeCallbackBufferCount++;
     }
 
     void OnRenderData(const void* audio_samples,
@@ -84,7 +101,30 @@ public:
             [_observer onRenderData:audio_samples numSamples:num_samples bytesPerSample:bytes_per_sample numChannels:num_channels samplesPerSec:samples_per_sec];
         }
     }
+private:
+    int volumeCallbackBufferCount = 0;
     
+    float Process(const int16_t* data, size_t length) {
+        float sum_square_ = 0;
+        size_t sample_count_ = 0;
+        for (size_t i = 0; i < length; ++i) {
+            sum_square_ += data[i] * data[i];
+        }
+        sample_count_ += length;
+        float rms = sum_square_ / (sample_count_ * kMaxSquaredLevel);
+        //20log_10(x^0.5) = 10log_10(x)
+        rms = 10 * log10(rms);
+        float level = 0;
+
+        if (rms < -46) {
+            level = 0;
+        } else if (rms >= -46 && rms <= -6) {
+            level = (rms + 46) / 40.0;
+        } else {
+            level = 1.0;
+        }
+        return level;
+    }
 };
 
 @implementation RTC_OBJC_TYPE (RTCPeerConnectionFactory) {

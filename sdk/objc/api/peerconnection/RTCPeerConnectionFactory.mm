@@ -205,12 +205,12 @@ private:
     if (observer) {
         _observer = std::make_unique<CSTAudioDeviceDataImp>();
         _observer->_observer = observer;
-        
-        
-        task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();
-        rtc::scoped_refptr<webrtc::AudioDeviceModule> admImp = webrtc::AudioDeviceModule::Create(
-                                                                                                 webrtc::AudioDeviceModule::kPlatformDefaultAudio, task_queue_factory.get());
-        adm = webrtc::CreateAudioDeviceWithDataObserver(admImp, std::move(_observer));
+        if (adm == nullptr) {
+            task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();
+            adm = webrtc::AudioDeviceModule::Create(
+                                                    webrtc::AudioDeviceModule::kPlatformDefaultAudio, task_queue_factory.get());
+        }
+        adm = webrtc::CreateAudioDeviceWithDataObserver(adm, std::move(_observer));
     }
     
     return [self initWithNativeAudioEncoderFactory:webrtc::CreateBuiltinAudioEncoderFactory()

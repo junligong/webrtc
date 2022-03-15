@@ -676,7 +676,11 @@ WEBRTC_RTCSTATS_IMPL(
     &fir_count,
     &pli_count,
     &nack_count,
-    &qp_sum)
+    &qp_sum,
+    &render_delay_ms,
+    &target_delay_ms,
+    &total_caton_count,
+    &total_caton_delay_ms)
 // clang-format on
 
 RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(const std::string& id,
@@ -732,7 +736,11 @@ RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(std::string&& id,
       fir_count("firCount"),
       pli_count("pliCount"),
       nack_count("nackCount"),
-      qp_sum("qpSum") {}
+      qp_sum("qpSum"),
+      render_delay_ms("renderDelayMs"),
+      target_delay_ms("targetDelayMs"),
+      total_caton_count("catonCount"),
+      total_caton_delay_ms("catonDelayMs") {}
 
 RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(
     const RTCInboundRTPStreamStats& other)
@@ -784,7 +792,11 @@ RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(
       fir_count(other.fir_count),
       pli_count(other.pli_count),
       nack_count(other.nack_count),
-      qp_sum(other.qp_sum) {}
+      qp_sum(other.qp_sum),
+      render_delay_ms(other.render_delay_ms),
+      target_delay_ms(other.target_delay_ms),
+      total_caton_count(other.total_caton_count),
+      total_caton_delay_ms(other.total_caton_delay_ms) {}
 
 RTCInboundRTPStreamStats::~RTCInboundRTPStreamStats() {}
 

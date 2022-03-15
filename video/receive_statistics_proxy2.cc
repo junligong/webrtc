@@ -62,6 +62,8 @@ const int kRateStatisticsWindowSizeMs = 1000;
 // values above - in the map.
 const int kMaxCommonInterframeDelayMs = 500;
 
+const int kInterframeCatonThreshold = 600;
+
 const char* UmaPrefixForContentType(VideoContentType content_type) {
   if (videocontenttypehelpers::IsScreenshare(content_type))
     return "WebRTC.Video.Screenshare";
@@ -931,6 +933,15 @@ void ReceiveStatisticsProxy::OnRenderedFrame(
     sum_missed_render_deadline_ms_ += -time_until_rendering_ms;
     ++num_delayed_frames_rendered_;
   }
+  int64_t now_ms = clock_->TimeInMilliseconds();
+  if (last_render_frame_time_ms_.has_value()) {
+    int64_t interframe_render_delay_ms = now_ms - last_render_frame_time_ms_.value();
+    if (interframe_render_delay_ms > kInterframeCatonThreshold) {
+      ++stats_.total_caton_count;
+      stats_.total_caton_delay_ms += interframe_render_delay_ms;
+    }
+  }
+  last_render_frame_time_ms_ = now_ms;
 
   if (frame_meta.ntp_time_ms > 0) {
     int64_t delay_ms =

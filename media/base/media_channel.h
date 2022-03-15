@@ -641,6 +641,10 @@ struct VideoReceiverInfo : public MediaReceiverInfo {
   // Timing frame info: all important timestamps for a full lifetime of a
   // single 'timing frame'.
   absl::optional<webrtc::TimingFrameInfo> timing_frame_info;
+
+  double total_caton_count = 0;
+
+  double total_caton_delay_ms = 0;
 };
 
 struct BandwidthEstimationInfo {

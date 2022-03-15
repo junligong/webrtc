@@ -3162,6 +3162,9 @@ WebRtcVideoChannel::WebRtcVideoReceiveStream::GetVideoReceiverInfo(
 
   info.timing_frame_info = stats.timing_frame_info;
 
+  info.total_caton_count = stats.total_caton_count;
+  info.total_caton_delay_ms = stats.total_caton_delay_ms;
+
   if (log_stats)
     RTC_LOG(LS_INFO) << stats.ToString(rtc::TimeMillis());
 

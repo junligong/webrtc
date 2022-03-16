@@ -25,7 +25,9 @@
 #include <vector>
 
 //@fujisheng IPV6
+#if defined(WEBRTC_IOS)
 #include <netdb.h>
+#endif
 
 #include "absl/algorithm/container.h"
 #include "api/candidate.h"
@@ -1123,55 +1125,58 @@ bool ParseCandidate(const std::string& message,
     return ParseFailed(first_line, "Invalid port number.", error);
   }
   //@fujisheng IPV6 适配 (安卓不需要转换：https://www.coder.work/article/3485538）
-  struct addrinfo hints = {0}, *res = NULL, *res0 = NULL;
-    
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family   = AF_UNSPEC;
-  hints.ai_socktype = SOCK_DGRAM;
-  hints.ai_protocol = IPPROTO_UDP;
-    
-    char port_str[8] = {0};
-    sprintf(port_str, "%d", port);
-    
-    int gai_error = getaddrinfo(connection_address.c_str(), port_str, &hints, &res0);
-    if (gai_error) {
-        RTC_LOG(LS_ERROR) << "ipv: getaddrinfo errorCode = " << gai_error;
-    } else {
-      RTC_LOG(LS_ERROR) << "ipv: getaddrinfo success";
-    }
-  
-  rtc::IPAddress ipAddress_4;
-  rtc::IPAddress ipAddress_6;
-  
-  for(res = res0; res; res = res->ai_next)
-  {
-      if (res->ai_family == AF_INET)
-      {
-          // Found IPv4 address
-          // Wrap the native address structure and add to list
-          sockaddr_in *sockaddr = (sockaddr_in *)res->ai_addr;
-          rtc::IPAddress address(sockaddr->sin_addr);
-          ipAddress_4 = address;
-          
-          RTC_LOG(LS_INFO) << "ipv: use ipv4, address->" << ipAddress_4.ToString();
-      }
-      else if (res->ai_family == AF_INET6)
-      {
-          struct sockaddr_in6 *sockaddr = (struct sockaddr_in6 *)(void *)res->ai_addr;
-          in_port_t *portPtr = &sockaddr->sin6_port;
-          if ((portPtr != NULL) && (*portPtr == 0)) {
-              *portPtr = htons(port);
-          }
+#if defined(WEBRTC_IOS)
+    struct addrinfo hints = {0}, *res = NULL, *res0 = NULL;
 
-          rtc::IPAddress address(sockaddr->sin6_addr);
-          ipAddress_6 = address;
-          
-          RTC_LOG(LS_INFO) << "ipv: use ipv6, address->" << ipAddress_6.ToString();
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_protocol = IPPROTO_UDP;
+
+      char port_str[8] = {0};
+      sprintf(port_str, "%d", port);
+
+      int gai_error = getaddrinfo(connection_address.c_str(), port_str, &hints, &res0);
+      if (gai_error) {
+          RTC_LOG(LS_ERROR) << "ipv: getaddrinfo errorCode = " << gai_error;
+      } else {
+        RTC_LOG(LS_ERROR) << "ipv: getaddrinfo success";
       }
-  }
-  
-  SocketAddress address((!ipAddress_6.IsNil()) ? ipAddress_6 : ipAddress_4, port);
-  // SocketAddress address(connection_address, port);
+
+    rtc::IPAddress ipAddress_4;
+    rtc::IPAddress ipAddress_6;
+
+    for(res = res0; res; res = res->ai_next)
+    {
+        if (res->ai_family == AF_INET)
+        {
+            // Found IPv4 address
+            // Wrap the native address structure and add to list
+            sockaddr_in *sockaddr = (sockaddr_in *)res->ai_addr;
+            rtc::IPAddress address(sockaddr->sin_addr);
+            ipAddress_4 = address;
+
+            RTC_LOG(LS_INFO) << "ipv: use ipv4, address->" << ipAddress_4.ToString();
+        }
+        else if (res->ai_family == AF_INET6)
+        {
+            struct sockaddr_in6 *sockaddr = (struct sockaddr_in6 *)(void *)res->ai_addr;
+            in_port_t *portPtr = &sockaddr->sin6_port;
+            if ((portPtr != NULL) && (*portPtr == 0)) {
+                *portPtr = htons(port);
+            }
+
+            rtc::IPAddress address(sockaddr->sin6_addr);
+            ipAddress_6 = address;
+
+            RTC_LOG(LS_INFO) << "ipv: use ipv6, address->" << ipAddress_6.ToString();
+        }
+    }
+
+    SocketAddress address((!ipAddress_6.IsNil()) ? ipAddress_6 : ipAddress_4, port);
+#else
+    SocketAddress address(connection_address, port);
+#endif
 
   cricket::ProtocolType protocol;
   if (!StringToProto(transport.c_str(), &protocol)) {

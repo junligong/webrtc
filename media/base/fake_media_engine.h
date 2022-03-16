@@ -505,6 +505,19 @@ class FakeVoiceEngine : public VoiceEngineInterface {
   void SetRtpHeaderExtensions(
       std::vector<webrtc::RtpHeaderExtensionCapability> header_extensions);
 
+  void HandleAudioDeviceChange()override{
+
+  }
+    
+  // CST - set playout device
+  void SetAudioDevicePlayout(int16_t index)override{
+
+  }
+  // CST - set Recording device
+  void SetAudioDeviceRecording(int16_t index)override{
+
+  }
+
  private:
   std::vector<FakeVoiceMediaChannel*> channels_;
   std::vector<AudioCodec> recv_codecs_;

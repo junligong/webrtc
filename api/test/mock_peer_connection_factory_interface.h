@@ -71,6 +71,13 @@ class MockPeerConnectionFactoryInterface final
   MOCK_METHOD(bool, StartAecDump, (FILE*, int64_t), (override));
   MOCK_METHOD(void, StopAecDump, (), (override));
 
+    // CST - set playout device
+  MOCK_METHOD(void, SetAudioDevicePlayout,(int16_t index), (override));
+  // CST - set Recording device
+  MOCK_METHOD(void,SetAudioDeviceRecording, (int16_t index), (override));
+
+  MOCK_METHOD(void,HandleAudioDeviceChange, (), (override));
+
  protected:
   MockPeerConnectionFactoryInterface() = default;
 };

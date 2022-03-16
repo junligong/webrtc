@@ -286,8 +286,6 @@ WebRtcVoiceEngine::~WebRtcVoiceEngine() {
   }
 }
 
-<<<<<<< HEAD
-=======
 void WebRtcVoiceEngine::HandleAudioDeviceChange() {
      RTC_DCHECK(worker_thread_checker_.IsCurrent());
     RTC_LOG(LS_INFO) << "fjs: WebRtcVoiceEngine::HandleAudioDeviceChange";
@@ -370,7 +368,6 @@ void WebRtcVoiceEngine::SetAudioDeviceRecording(int16_t index){
     }
 }
 
->>>>>>> 8e81ba627d... add change device API
 void WebRtcVoiceEngine::Init() {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   RTC_LOG(LS_INFO) << "WebRtcVoiceEngine::Init";

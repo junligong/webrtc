@@ -207,6 +207,9 @@ class ReceiveStatisticsProxy : public VCMReceiveStatisticsCallback,
   absl::optional<int64_t> last_estimated_playout_time_ms_
       RTC_GUARDED_BY(main_thread_);
 
+  absl::optional<int64_t> last_render_frame_time_ms_
+      RTC_GUARDED_BY(main_thread_);
+
   // The thread on which this instance is constructed and some of its main
   // methods are invoked on such as GetStats().
   TaskQueueBase* const worker_thread_;

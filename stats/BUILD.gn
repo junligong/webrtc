@@ -19,6 +19,7 @@ rtc_library("rtc_stats") {
     "rtc_stats.cc",
     "rtc_stats_report.cc",
     "rtcstats_objects.cc",
+    "rtc_stats_collector_callback2.cc"
   ]
 
   deps = [

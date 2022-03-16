@@ -378,6 +378,9 @@ std::unique_ptr<RTCInboundRTPStreamStats> CreateInboundAudioStreamStats(
       voice_receiver_info.fec_packets_received;
   inbound_audio->fec_packets_discarded =
       voice_receiver_info.fec_packets_discarded;
+
+  inbound_audio->target_delay_ms = voice_receiver_info.delay_estimate_ms;
+
   return inbound_audio;
 }
 
@@ -469,6 +472,11 @@ void SetInboundRTPStreamStatsFromVideoReceiverInfo(
       video_receiver_info.total_inter_frame_delay;
   inbound_video->total_squared_inter_frame_delay =
       video_receiver_info.total_squared_inter_frame_delay;
+
+  inbound_video->total_caton_count = video_receiver_info.total_caton_count;
+  inbound_video->total_caton_delay_ms =
+        video_receiver_info.total_caton_delay_ms;
+
   if (video_receiver_info.last_packet_received_timestamp_ms) {
     inbound_video->last_packet_received_timestamp = static_cast<double>(
         *video_receiver_info.last_packet_received_timestamp_ms);
@@ -486,6 +494,12 @@ void SetInboundRTPStreamStatsFromVideoReceiverInfo(
     inbound_video->decoder_implementation =
         video_receiver_info.decoder_implementation_name;
   }
+
+  inbound_video->render_delay_ms = video_receiver_info.render_delay_ms;
+  inbound_video->target_delay_ms = video_receiver_info.target_delay_ms;
+
+  inbound_video->total_caton_count = video_receiver_info.total_caton_count;
+  inbound_video->total_caton_delay_ms = video_receiver_info.total_caton_delay_ms;
 }
 
 // Provides the media independent counters (both audio and video).

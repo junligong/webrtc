@@ -505,6 +505,16 @@ class RTC_EXPORT RTCInboundRTPStreamStats final
   // audio and video but is only defined in the "video" case. crbug.com/657856
   RTCStatsMember<uint32_t> nack_count;
   RTCStatsMember<uint64_t> qp_sum;
+
+  // Requested latency to account for rendering delay.
+  RTCStatsMember<uint32_t> render_delay_ms;
+  // Target overall delay: network+decode+render, accounting for
+  // min_playout_delay_ms.
+  RTCStatsMember<uint32_t> target_delay_ms;
+
+  RTCStatsMember<double> total_caton_count;
+  
+  RTCStatsMember<double> total_caton_delay_ms;
 };
 
 // https://w3c.github.io/webrtc-stats/#outboundrtpstats-dict*

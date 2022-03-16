@@ -290,6 +290,4 @@ void ChannelManager::SetAudioDeviceRecording(int16_t index) {
     [&] { media_engine_->voice().SetAudioDeviceRecording(index); });
 }
 
-
-
 }  // namespace cricket

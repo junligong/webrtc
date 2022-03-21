@@ -330,6 +330,7 @@ void RTCInBoundStatsCollectorCallBack::Initialization() {
   audio_codec_map.clear();
   video_codec_map.clear();
   transport_map.clear();
+  track_map.clear();
 }
 
 void RTCInBoundStatsCollectorCallBack::CalcStats() {

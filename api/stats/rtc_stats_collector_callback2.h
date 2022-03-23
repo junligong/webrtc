@@ -207,6 +207,12 @@ private:
   RTCInBandStats stats_;
 };
 
+RTC_EXPORT rtc::scoped_refptr<webrtc::RTCOutBoundStatsCollectorCallBack>
+CreatOutBoundStatsCollectorCallBack();
+
+RTC_EXPORT rtc::scoped_refptr<webrtc::RTCInBoundStatsCollectorCallBack>
+CreatInBoundStatsCollectorCallBack();
+
 }
 
 #endif

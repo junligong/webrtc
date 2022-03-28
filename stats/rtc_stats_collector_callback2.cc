@@ -330,6 +330,7 @@ void RTCInBoundStatsCollectorCallBack::Initialization() {
   audio_codec_map.clear();
   video_codec_map.clear();
   transport_map.clear();
+  track_map.clear();
 }
 
 void RTCInBoundStatsCollectorCallBack::CalcStats() {
@@ -477,4 +478,15 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
 
   stats_ = stats;
 }
+
+RTC_EXPORT rtc::scoped_refptr<webrtc::RTCOutBoundStatsCollectorCallBack>
+CreatOutBoundStatsCollectorCallBack() {
+  return new rtc::RefCountedObject<webrtc::RTCOutBoundStatsCollectorCallBack>();
+}
+
+RTC_EXPORT rtc::scoped_refptr<webrtc::RTCInBoundStatsCollectorCallBack>
+CreatInBoundStatsCollectorCallBack() {
+  return new rtc::RefCountedObject<webrtc::RTCInBoundStatsCollectorCallBack>();
+}
+
 }  // namespace webrtc

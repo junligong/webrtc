@@ -14,63 +14,44 @@ RTCOutBandStats RTCOutBoundStatsCollectorCallBack::GetOutBandStats() const {
 void RTCOutBoundStatsCollectorCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) {
 
   //std::string str_report = report->ToJson();
-  
   Initialization();
 
   auto outbounds = report->GetStatsOfType<webrtc::RTCOutboundRTPStreamStats>();
   for(const webrtc::RTCOutboundRTPStreamStats* outbound : outbounds) {
     if (*outbound->kind == "video") {
-
       outbound_video_map.push_back(outbound);
-      //占位
-      video_codec_map[*outbound->codec_id] = nullptr;
       remote_inbound_video_map[*outbound->remote_id] = nullptr;
 
     } else {
       outbound_audio_map.push_back(outbound);
-      //占位
-      audio_codec_map[*outbound->codec_id] = nullptr;
       remote_inbound_audio_map[*outbound->remote_id] = nullptr;
     }
   }
+
+  auto codecs = report->GetStatsOfType<webrtc::RTCCodecStats>();
+  for (auto codec : codecs) {
+    codec_map[codec->id()] = codec;
+  }
+
   bool hasAudio = !outbound_audio_map.empty();
   bool hasVideo = !outbound_video_map.empty();
 
-  if (hasAudio || hasVideo){
-
-    // 目前认为视频统一使用一种编码器，音频统一使用一种编码器
-    auto iter_audio = audio_codec_map.begin();
-    auto iter_video = video_codec_map.begin();
-
-    auto codecs = report->GetStatsOfType<webrtc::RTCCodecStats>();
-    for (auto codec : codecs) {
-      if ((!hasAudio || iter_audio->second) && (!hasVideo || iter_video->second)) {
-        break;
-      }
-      //如果有占位数据，更新codec
-      if (hasAudio && !iter_audio->second && iter_audio->first == codec->id()) {
-        iter_audio->second = codec;
-      } else if (hasVideo  && !iter_video->second && iter_video->first == codec->id()) {
-        iter_video->second = codec;
-      }
-    }
-
+  if (hasAudio || hasVideo) {
     // audio mediasource
     auto audio_mediasources = report->GetStatsOfType<webrtc::RTCAudioSourceStats>();
     for (auto audio_mediasource : audio_mediasources) {
       audio_mediasource_map[audio_mediasource->id()] = audio_mediasource;
     }
 
-     // video mediasource
-    auto video_mediasources =
-        report->GetStatsOfType<webrtc::RTCVideoSourceStats>();
+    // video mediasource
+    auto video_mediasources = report->GetStatsOfType<webrtc::RTCVideoSourceStats>();
     for (auto video_mediasource : video_mediasources) {
       video_mediasource_map[video_mediasource->id()] = video_mediasource;
     }
 
     //下行数据
     auto remote_outbounds = report->GetStatsOfType<webrtc::RTCRemoteInboundRtpStreamStats>();
-    for (auto remote_outbound : remote_outbounds){
+    for (auto remote_outbound : remote_outbounds) {
       if (*remote_outbound->kind == "video") {
         auto iter = remote_inbound_video_map.find(remote_outbound->id());
         if (iter != remote_inbound_video_map.end()) {
@@ -89,6 +70,11 @@ void RTCOutBoundStatsCollectorCallBack::OnStatsDelivered(const rtc::scoped_refpt
       transport_map[transport->id()] = transport;
     }
 
+    // 带宽
+    auto candidate_pairs = report->GetStatsOfType<webrtc::RTCIceCandidatePairStats>();
+    for (auto candidate_pair : candidate_pairs) {
+      candidate_pair_map[candidate_pair->id()] = candidate_pair;
+    }
   }
   CalcStats();
 }
@@ -100,14 +86,18 @@ void RTCOutBoundStatsCollectorCallBack::Initialization() {
   remote_inbound_video_map.clear();
   audio_mediasource_map.clear();
   video_mediasource_map.clear();
-  audio_codec_map.clear();
-  video_codec_map.clear();
+  codec_map.clear();
   transport_map.clear();
+  candidate_pair_map.clear();
 }
 
 void RTCOutBoundStatsCollectorCallBack::CalcStats() {
 
   RTCOutBandStats stats;
+  if (!candidate_pair_map.empty()){
+    stats.available_outgoing_bitrate = candidate_pair_map.begin()->second->available_outgoing_bitrate.ValueOrDefault(0) / 1000.0;
+  }
+
   //audio_outbound
   for (auto audio_outbound : outbound_audio_map) {
     stats.timestamp = audio_outbound->timestamp_us();
@@ -118,6 +108,18 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
 
     audio_outband_stats.packets_sent = audio_outbound->packets_sent.ValueOrDefault(0);
     audio_outband_stats.bytes_sent = audio_outbound->bytes_sent.ValueOrDefault(0);
+
+    // 编码器
+    auto audio_codec = codec_map.find(*audio_outbound->codec_id);
+    if (audio_codec != codec_map.end() && audio_codec->second) {
+      audio_outband_stats.audio_codec.payload_type = audio_codec->second->payload_type.ValueOrDefault(0);
+      audio_outband_stats.audio_codec.mime_type =
+          *audio_codec->second->mime_type;
+      audio_outband_stats.audio_codec.clock_rate =
+          audio_codec->second->clock_rate.ValueOrDefault(0);
+      audio_outband_stats.audio_codec.channels =
+          audio_codec->second->channels.ValueOrDefault(0);
+    }
 
     if (audio_outbound->remote_id.is_defined()) {
       auto remote_iter =
@@ -173,6 +175,19 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
 
     video_outband_stats.packets_sent = video_outbound->packets_sent.ValueOrDefault(0);
     video_outband_stats.bytes_sent = video_outbound->bytes_sent.ValueOrDefault(0);
+
+    // 编码器
+    auto video_codec = codec_map.find(*video_outbound->codec_id);
+    if (video_codec != codec_map.end() && video_codec->second) {
+      video_outband_stats.video_codec.payload_type =
+          video_codec->second->payload_type.ValueOrDefault(0);
+      video_outband_stats.video_codec.mime_type =
+          *video_codec->second->mime_type;
+      video_outband_stats.video_codec.clock_rate =
+          video_codec->second->clock_rate.ValueOrDefault(0);
+      video_outband_stats.video_codec.channels =
+          video_codec->second->channels.ValueOrDefault(0);
+    }
 
     if (video_outbound->frames_per_second.is_defined()) {
       video_outband_stats.frames_per_second =
@@ -248,34 +263,19 @@ void RTCInBoundStatsCollectorCallBack::OnStatsDelivered(const rtc::scoped_refptr
     if (*intbound->kind == "audio") {
       inbound_audio_map.push_back(intbound);
       remote_outbound_audio_map.insert(std::make_pair(*intbound->remote_id, nullptr));
-      audio_codec_map.insert(std::make_pair(*intbound->codec_id, nullptr));
     } else {
       inbound_video_map.push_back(intbound);
       remote_outbound_video_map.insert(std::make_pair(*intbound->remote_id, nullptr));
-      video_codec_map.insert(std::make_pair(*intbound->codec_id, nullptr));
     }
+  }
+  auto codecs = report->GetStatsOfType<webrtc::RTCCodecStats>();
+  for (auto codec : codecs) {
+    codec_map[codec->id()] = codec;
   }
 
   bool hasAudio = !inbound_audio_map.empty();
   bool hasVideo = !inbound_video_map.empty();
   if (hasAudio || hasVideo){
-    // 目前认为视频统一使用一种编码器，音频统一使用一种编码器
-    auto iter_audio = audio_codec_map.begin();
-    auto iter_video = video_codec_map.begin();
-
-    auto codecs = report->GetStatsOfType<webrtc::RTCCodecStats>();
-    for (auto codec : codecs) {
-      if ((!hasAudio || iter_audio->second) &&
-          (!hasVideo || iter_video->second)) {
-        break;
-      }
-      if (hasAudio && !iter_audio->second && iter_audio->first == codec->id()) {
-        iter_audio->second = codec;
-      } else if (hasVideo && !iter_video->second &&
-                 iter_video->first == codec->id()) {
-        iter_video->second = codec;
-      }
-    }
 
     // audio mediasource
     auto audio_mediasources =
@@ -327,10 +327,9 @@ void RTCInBoundStatsCollectorCallBack::Initialization() {
   remote_outbound_video_map.clear();
   audio_mediasource_map.clear();
   video_mediasource_map.clear();
-  audio_codec_map.clear();
-  video_codec_map.clear();
   transport_map.clear();
   track_map.clear();
+  codec_map.clear();
 }
 
 void RTCInBoundStatsCollectorCallBack::CalcStats() {
@@ -360,6 +359,18 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     audio_stats.audio_level = inbound_audio->audio_level.ValueOrDefault(0);
     audio_stats.total_audio_energy = inbound_audio->total_audio_energy.ValueOrDefault(0);
     audio_stats.total_samples_duration = inbound_audio->total_samples_duration.ValueOrDefault(0);
+
+    // 编码器
+    auto audio_codec = codec_map.find(*inbound_audio->codec_id);
+    if (audio_codec != codec_map.end() && audio_codec->second) {
+      audio_stats.audio_codec.payload_type =
+          audio_codec->second->payload_type.ValueOrDefault(0);
+      audio_stats.audio_codec.mime_type = *audio_codec->second->mime_type;
+      audio_stats.audio_codec.clock_rate =
+          audio_codec->second->clock_rate.ValueOrDefault(0);
+      audio_stats.audio_codec.channels =
+          audio_codec->second->channels.ValueOrDefault(0);
+    }
 
     // 计算丢包
     audio_stats.fraction_lost = 0; 
@@ -415,7 +426,19 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     video_stats.render_delay_ms = inbound_video->render_delay_ms.ValueOrDefault(0);
     video_stats.target_delay_ms = inbound_video->target_delay_ms.ValueOrDefault(0);
     video_stats.total_caton_count =inbound_video->total_caton_count.ValueOrDefault(0);
+
     video_stats.total_caton_delay_ms = inbound_video->total_caton_delay_ms.ValueOrDefault(0);
+    // 编码器
+    auto video_codec = codec_map.find(*inbound_video->codec_id);
+    if (video_codec != codec_map.end() && video_codec->second) {
+      video_stats.video_codec.payload_type =
+          video_codec->second->payload_type.ValueOrDefault(0);
+      video_stats.video_codec.mime_type = *video_codec->second->mime_type;
+      video_stats.video_codec.clock_rate =
+          video_codec->second->clock_rate.ValueOrDefault(0);
+      video_stats.video_codec.channels =
+          video_codec->second->channels.ValueOrDefault(0);
+    }
 
     std::string str_track_id = *inbound_video->track_id;
     if (!str_track_id.empty()) {

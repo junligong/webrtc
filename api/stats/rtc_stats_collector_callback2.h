@@ -5,6 +5,13 @@
 #include <map>
 #include <string>
 
+struct RTCCodec {
+  uint32_t payload_type = 0;
+  std::string mime_type = "";
+  uint32_t clock_rate = 0;
+  uint32_t channels = 0;
+};
+
 struct RTCAudioOutBandStats {
   uint32_t ssrc = 0;                        // ssrc
   double bitrate_send = 0;                  // 上行码率
@@ -17,6 +24,8 @@ struct RTCAudioOutBandStats {
 
   double fraction_lost = 0;                 // 上行丢包率
   double round_trip_time = 0;               // rtt
+
+  RTCCodec audio_codec;
 };
 
 struct RTCVideoOutBandStats {
@@ -44,11 +53,14 @@ struct RTCVideoOutBandStats {
 
   double fraction_lost = 0;                  // 上行丢包率
   double round_trip_time = 0;                // rtt
+
+  RTCCodec video_codec;
 };
 // 上行
 struct RTCOutBandStats {
   int64_t timestamp = 0;
   double bitrate_send = 0;                   // 上行码率KB/s
+  double available_outgoing_bitrate;         // 下行带宽评估
 
   uint64_t bytes_sent = 0;                   // transport bytesSent
   uint64_t packets_sent = 0;                 // transport packetsSent
@@ -81,6 +93,8 @@ struct RTCAudioInBandStats {
   double total_audio_energy = 0;
   double total_samples_duration = 0;
   double audio_caton_ms = 0;
+
+  RTCCodec audio_codec;
 };
 
 struct RTCVideoInBandStats {
@@ -123,6 +137,8 @@ struct RTCVideoInBandStats {
 
   double total_caton_count = 0;
   double total_caton_delay_ms = 0;
+
+  RTCCodec video_codec;
 };
 
 // 下行需求
@@ -165,9 +181,10 @@ class RTCOutBoundStatsCollectorCallBack : public RTCStatsCollectorCallback {
   std::map<std::string, const webrtc::RTCAudioSourceStats*> audio_mediasource_map;
   std::map<std::string, const webrtc::RTCVideoSourceStats*> video_mediasource_map;
 
-  std::map<std::string, const webrtc::RTCCodecStats* > audio_codec_map;
-  std::map<std::string, const webrtc::RTCCodecStats* > video_codec_map;
+  std::map<std::string, const webrtc::RTCCodecStats*> codec_map;
   std::map<std::string, const webrtc::RTCTransportStats*> transport_map;
+
+  std::map<std::string, const webrtc::RTCIceCandidatePairStats*> candidate_pair_map;
 
   RTCOutBandStats stats_;
 }; 
@@ -199,8 +216,7 @@ private:
 
   std::map<std::string, const webrtc::RTCMediaStreamTrackStats*> track_map;
 
-  std::map<std::string, const webrtc::RTCCodecStats*> audio_codec_map;
-  std::map<std::string, const webrtc::RTCCodecStats*> video_codec_map;
+  std::map<std::string, const webrtc::RTCCodecStats*> codec_map;
 
   std::map<std::string, const webrtc::RTCTransportStats*> transport_map;
 

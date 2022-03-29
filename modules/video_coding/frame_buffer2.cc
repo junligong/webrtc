@@ -38,6 +38,10 @@ namespace {
 // Max number of frames the buffer will hold.
 constexpr size_t kMaxFramesBuffered = 800;
 
+// Default value for the maximum decode queue size that is used when the
+// low-latency renderer is used.
+constexpr size_t kZeroPlayoutDelayDefaultMaxDecodeQueueSize = 8;
+
 // Max number of decoded frame info that will be saved.
 constexpr int kMaxFramesHistory = 1 << 13;
 
@@ -61,9 +65,12 @@ FrameBuffer::FrameBuffer(Clock* clock,
       protection_mode_(kProtectionNack),
       stats_callback_(stats_callback),
       last_log_non_decoded_ms_(-kLogNonDecodedIntervalMs),
-      add_rtt_to_playout_delay_(
-          webrtc::field_trial::IsEnabled("WebRTC-AddRttToPlayoutDelay")),
-      rtt_mult_settings_(RttMultExperiment::GetRttMultValue()) {
+      rtt_mult_settings_(RttMultExperiment::GetRttMultValue()),
+      zero_playout_delay_max_decode_queue_size_(
+          "max_decode_queue_size",
+          kZeroPlayoutDelayDefaultMaxDecodeQueueSize) {
+  ParseFieldTrial({&zero_playout_delay_max_decode_queue_size_},
+                  field_trial::FindFullName("WebRTC-ZeroPlayoutDelay"));
   callback_checker_.Detach();
 }
 
@@ -110,6 +117,8 @@ void FrameBuffer::StartWaitForNextFrameOnQueue() {
           if (!frames_to_decode_.empty()) {
             // We have frames, deliver!
             frame = absl::WrapUnique(GetNextFrame());
+            timing_->SetLastDecodeScheduledTimestamp(
+                clock_->TimeInMilliseconds());
           } else if (clock_->TimeInMilliseconds() < latest_return_time_ms_) {
             // If there's no frames to decode and there is still time left, it
             // means that the frame buffer was cleared between creation and
@@ -131,7 +140,7 @@ int64_t FrameBuffer::FindNextFrame(int64_t now_ms) {
   int64_t wait_ms = latest_return_time_ms_ - now_ms;
   frames_to_decode_.clear();
 
-  // |last_continuous_frame_| may be empty below, but nullopt is smaller
+  // `last_continuous_frame_` may be empty below, but nullopt is smaller
   // than everything else and loop will immediately terminate as expected.
   for (auto frame_it = frames_.begin();
        frame_it != frames_.end() && frame_it->first <= last_continuous_frame_;
@@ -210,7 +219,11 @@ int64_t FrameBuffer::FindNextFrame(int64_t now_ms) {
     if (frame->RenderTime() == -1) {
       frame->SetRenderTime(timing_->RenderTimeMs(frame->Timestamp(), now_ms));
     }
-    wait_ms = timing_->MaxWaitingTime(frame->RenderTime(), now_ms);
+    bool too_many_frames_queued =
+        frames_.size() > zero_playout_delay_max_decode_queue_size_ ? true
+                                                                   : false;
+    wait_ms = timing_->MaxWaitingTime(frame->RenderTime(), now_ms,
+                                      too_many_frames_queued);
 
     // This will cause the frame buffer to prefer high framerate rather
     // than high resolution in the case of the decoder not decoding fast
@@ -230,20 +243,20 @@ int64_t FrameBuffer::FindNextFrame(int64_t now_ms) {
 EncodedFrame* FrameBuffer::GetNextFrame() {
   RTC_DCHECK_RUN_ON(&callback_checker_);
   int64_t now_ms = clock_->TimeInMilliseconds();
-  // TODO(ilnik): remove |frames_out| use frames_to_decode_ directly.
+  // TODO(ilnik): remove `frames_out` use frames_to_decode_ directly.
   std::vector<EncodedFrame*> frames_out;
 
   RTC_DCHECK(!frames_to_decode_.empty());
   bool superframe_delayed_by_retransmission = false;
   size_t superframe_size = 0;
-  EncodedFrame* first_frame = frames_to_decode_[0]->second.frame.get();
-  int64_t render_time_ms = first_frame->RenderTime();
-  int64_t receive_time_ms = first_frame->ReceivedTime();
+  const EncodedFrame& first_frame = *frames_to_decode_[0]->second.frame;
+  int64_t render_time_ms = first_frame.RenderTime();
+  int64_t receive_time_ms = first_frame.ReceivedTime();
   // Gracefully handle bad RTP timestamps and render time issues.
-  if (HasBadRenderTiming(*first_frame, now_ms)) {
+  if (HasBadRenderTiming(first_frame, now_ms)) {
     jitter_estimator_.Reset();
     timing_->Reset();
-    render_time_ms = timing_->RenderTimeMs(first_frame->Timestamp(), now_ms);
+    render_time_ms = timing_->RenderTimeMs(first_frame.Timestamp(), now_ms);
   }
 
   for (FrameMap::iterator& frame_it : frames_to_decode_) {
@@ -279,8 +292,8 @@ EncodedFrame* FrameBuffer::GetNextFrame() {
   if (!superframe_delayed_by_retransmission) {
     int64_t frame_delay;
 
-    if (inter_frame_delay_.CalculateDelay(first_frame->Timestamp(),
-                                          &frame_delay, receive_time_ms)) {
+    if (inter_frame_delay_.CalculateDelay(first_frame.Timestamp(), &frame_delay,
+                                          receive_time_ms)) {
       jitter_estimator_.UpdateEstimate(frame_delay, superframe_size);
     }
 
@@ -294,7 +307,7 @@ EncodedFrame* FrameBuffer::GetNextFrame() {
         jitter_estimator_.GetJitterEstimate(rtt_mult, rtt_mult_add_cap_ms));
     timing_->UpdateCurrentDelay(render_time_ms, now_ms);
   } else {
-    if (RttMultExperiment::RttMultEnabled() || add_rtt_to_playout_delay_)
+    if (RttMultExperiment::RttMultEnabled())
       jitter_estimator_.FrameNacked();
   }
 
@@ -547,13 +560,13 @@ bool FrameBuffer::UpdateFrameInfoWithIncomingFrame(const EncodedFrame& frame,
   auto last_decoded_frame = decoded_frames_history_.GetLastDecodedFrameId();
   RTC_DCHECK(!last_decoded_frame || *last_decoded_frame < info->first);
 
-  // In this function we determine how many missing dependencies this |frame|
-  // has to become continuous/decodable. If a frame that this |frame| depend
+  // In this function we determine how many missing dependencies this `frame`
+  // has to become continuous/decodable. If a frame that this `frame` depend
   // on has already been decoded then we can ignore that dependency since it has
   // already been fulfilled.
   //
-  // For all other frames we will register a backwards reference to this |frame|
-  // so that |num_missing_continuous| and |num_missing_decodable| can be
+  // For all other frames we will register a backwards reference to this `frame`
+  // so that `num_missing_continuous` and `num_missing_decodable` can be
   // decremented as frames become continuous/are decoded.
   struct Dependency {
     int64_t frame_id;
@@ -563,9 +576,9 @@ bool FrameBuffer::UpdateFrameInfoWithIncomingFrame(const EncodedFrame& frame,
 
   // Find all dependencies that have not yet been fulfilled.
   for (size_t i = 0; i < frame.num_references; ++i) {
-    // Does |frame| depend on a frame earlier than the last decoded one?
+    // Does `frame` depend on a frame earlier than the last decoded one?
     if (last_decoded_frame && frame.references[i] <= *last_decoded_frame) {
-      // Was that frame decoded? If not, this |frame| will never become
+      // Was that frame decoded? If not, this `frame` will never become
       // decodable.
       if (!decoded_frames_history_.WasDecoded(frame.references[i])) {
         int64_t now_ms = clock_->TimeInMilliseconds();

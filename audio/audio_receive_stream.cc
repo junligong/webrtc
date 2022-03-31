@@ -270,6 +270,14 @@ webrtc::AudioReceiveStream::Stats AudioReceiveStream::GetStats(
   stats.sender_reports_bytes_sent = call_stats.sender_reports_bytes_sent;
   stats.sender_reports_reports_count = call_stats.sender_reports_reports_count;
 
+  auto device_module = audio_state_->audio_device_module();
+  if (device_module) {
+    uint32_t volume;
+    if (device_module->SpeakerVolume(&volume) == 0) {
+      stats.audio_volume = volume / 255.0;
+    }
+  }
+
   return stats;
 }
 

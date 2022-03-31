@@ -455,6 +455,7 @@ class RTC_EXPORT RTCInboundRTPStreamStats final
   RTCStatsMember<uint64_t> concealment_events;
   RTCStatsMember<uint64_t> inserted_samples_for_deceleration;
   RTCStatsMember<uint64_t> removed_samples_for_acceleration;
+  RTCStatsMember<uint32_t> audio_volume;  // gjl
   RTCStatsMember<double> audio_level;
   RTCStatsMember<double> total_audio_energy;
   RTCStatsMember<double> total_samples_duration;
@@ -570,6 +571,7 @@ class RTC_EXPORT RTCOutboundRTPStreamStats final : public RTCRTPStreamStats {
   // audio and video but is only defined in the "video" case. crbug.com/657856
   RTCStatsMember<uint32_t> nack_count;
   RTCStatsMember<uint64_t> qp_sum;
+  RTCStatsMember<double> audio_volume;  // gjl capture volume [0 1]
 };
 
 // https://w3c.github.io/webrtc-stats/#remoteinboundrtpstats-dict*

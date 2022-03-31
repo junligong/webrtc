@@ -70,6 +70,8 @@ class AudioSendStream : public AudioSender {
     // per-pair the ReportBlockData represents the latest Report Block that was
     // received for that pair.
     std::vector<ReportBlockData> report_block_datas;
+    // gjl
+    double audio_volume = 0;
   };
 
   struct Config {

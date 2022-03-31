@@ -97,6 +97,8 @@ class AudioReceiveStream {
     uint32_t sender_reports_packets_sent = 0;
     uint64_t sender_reports_bytes_sent = 0;
     uint64_t sender_reports_reports_count = 0;
+    // gjl
+    double audio_volume = 0;
   };
 
   struct Config {

@@ -108,7 +108,7 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
 
     audio_outband_stats.packets_sent = audio_outbound->packets_sent.ValueOrDefault(0);
     audio_outband_stats.bytes_sent = audio_outbound->bytes_sent.ValueOrDefault(0);
-
+    audio_outband_stats.audio_volume = audio_outbound->audio_volume.ValueOrDefault(0);
     // 编码器
     auto audio_codec = codec_map.find(*audio_outbound->codec_id);
     if (audio_codec != codec_map.end() && audio_codec->second) {
@@ -359,7 +359,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     audio_stats.audio_level = inbound_audio->audio_level.ValueOrDefault(0);
     audio_stats.total_audio_energy = inbound_audio->total_audio_energy.ValueOrDefault(0);
     audio_stats.total_samples_duration = inbound_audio->total_samples_duration.ValueOrDefault(0);
-
+    audio_stats.audio_volume = inbound_audio->audio_volume.ValueOrDefault(0);
     // 编码器
     auto audio_codec = codec_map.find(*inbound_audio->codec_id);
     if (audio_codec != codec_map.end() && audio_codec->second) {

@@ -26,6 +26,7 @@ struct RTCAudioOutBandStats {
   double round_trip_time = 0;               // rtt
 
   RTCCodec audio_codec;
+  double audio_volume = 0;                  //  [0、1]
 };
 
 struct RTCVideoOutBandStats {
@@ -95,6 +96,7 @@ struct RTCAudioInBandStats {
   double audio_caton_ms = 0;
 
   RTCCodec audio_codec;
+  double audio_volume = 0;  // [0、1]
 };
 
 struct RTCVideoInBandStats {

@@ -75,6 +75,11 @@ void RTCOutBoundStatsCollectorCallBack::OnStatsDelivered(const rtc::scoped_refpt
     for (auto candidate_pair : candidate_pairs) {
       candidate_pair_map[candidate_pair->id()] = candidate_pair;
     }
+
+    auto media_tracks = report->GetStatsOfType<webrtc::RTCMediaStreamTrackStats>();
+    for (auto media_track : media_tracks) {
+      track_map[media_track->id()] = media_track;
+    }
   }
   CalcStats();
 }
@@ -89,6 +94,7 @@ void RTCOutBoundStatsCollectorCallBack::Initialization() {
   codec_map.clear();
   transport_map.clear();
   candidate_pair_map.clear();
+  track_map.clear();
 }
 
 void RTCOutBoundStatsCollectorCallBack::CalcStats() {
@@ -102,6 +108,16 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
   for (auto audio_outbound : outbound_audio_map) {
     stats.timestamp = audio_outbound->timestamp_us();
     
+    if ((*audio_outbound->track_id).empty()) {
+      continue;
+    }
+    std::string track_identifier;
+    auto track_iter = track_map.find(*audio_outbound->track_id);
+    if (track_iter == track_map.end()) {
+      continue;
+    }
+    track_identifier = *track_iter->second->track_identifier;
+
     RTCAudioOutBandStats audio_outband_stats;
     audio_outband_stats.ssrc = audio_outbound->ssrc.ValueOrDefault(0);
     audio_outband_stats.bitrate_send = 0;
@@ -141,18 +157,28 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
     }
 
     if (stats_.timestamp > 0) {
-      auto audio_iter = stats_.audios.find(audio_outband_stats.ssrc);
+      auto audio_iter = stats_.audios.find(track_identifier);
       if (audio_iter != stats_.audios.end()) {
         audio_outband_stats.bitrate_send =
             (audio_outband_stats.bytes_sent - audio_iter->second.bytes_sent) * 1000.0 /
             (stats.timestamp - stats_.timestamp);
       }
     }
-    stats.audios[audio_outband_stats.ssrc] = audio_outband_stats;
+    stats.audios[track_identifier] = audio_outband_stats;
   }
 
    for (auto video_outbound : outbound_video_map) {
     stats.timestamp = video_outbound->timestamp_us();
+
+    if ((*video_outbound->track_id).empty()) {
+      continue;
+    }
+    std::string track_identifier;
+    auto track_iter = track_map.find(*video_outbound->track_id);
+    if (track_iter == track_map.end()) {
+      continue;
+    }
+    track_identifier = *track_iter->second->track_identifier;
 
     RTCVideoOutBandStats video_outband_stats;
     video_outband_stats.ssrc = video_outbound->ssrc.ValueOrDefault(0);
@@ -210,7 +236,7 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
     }
     video_outband_stats.target_delay_ms = 0;
     if (stats_.timestamp) {
-      auto video_iter = stats_.videos.find(video_outband_stats.ssrc);
+      auto video_iter = stats_.videos.find(track_identifier);
       if (video_iter != stats_.videos.end()) {
         video_outband_stats.bitrate_send =
             (video_outband_stats.bytes_sent - video_iter->second.bytes_sent) * 1000.0 /
@@ -231,7 +257,7 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
         }
       }
     }
-    stats.videos[video_outband_stats.ssrc] = video_outband_stats;
+    stats.videos[track_identifier] = video_outband_stats;
   }
 
    for (auto iter = transport_map.begin(); iter != transport_map.end(); ++iter){
@@ -338,6 +364,17 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
   //inbound_audio
   for (auto inbound_audio : inbound_audio_map) {
     stats.timestamp = inbound_audio->timestamp_us();
+
+    if ((*inbound_audio->track_id).empty()) {
+      continue;
+    }
+    std::string track_identifier;
+    auto track_iter = track_map.find(*inbound_audio->track_id);
+    if (track_iter == track_map.end()) {
+      continue;
+    }
+    track_identifier = *track_iter->second->track_identifier;
+
     RTCAudioInBandStats audio_stats;
     audio_stats.ssrc = inbound_audio->ssrc.ValueOrDefault(0);
     audio_stats.jitter = inbound_audio->jitter.ValueOrDefault(0);
@@ -376,7 +413,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     audio_stats.fraction_lost = 0; 
     audio_stats.bitrate_recv = 0;;
 
-    auto audio_item = stats_.audios.find(audio_stats.ssrc);
+    auto audio_item = stats_.audios.find(track_identifier);
     if (audio_item != stats_.audios.end()) {
       //已有数据则合并，相邻数据
       if (audio_item->second.packets_received != audio_stats.packets_received) {
@@ -396,13 +433,24 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
       }
 
     }
-    stats.audios.insert(std::make_pair(audio_stats.ssrc, audio_stats));
+    stats.audios.insert(std::make_pair(track_identifier, audio_stats));
 
   }
 
   //inbound_video
   for (auto inbound_video : inbound_video_map){
     stats.timestamp = inbound_video->timestamp_us();
+
+    if ((*inbound_video->track_id).empty()) {
+      continue;
+    }
+    std::string track_identifier;
+    auto track_iter = track_map.find(*inbound_video->track_id);
+    if (track_iter == track_map.end()) {
+      continue;
+    }
+    track_identifier = *track_iter->second->track_identifier;
+
     RTCVideoInBandStats video_stats;
     video_stats.ssrc = inbound_video->ssrc.ValueOrDefault(0);
     video_stats.jitter = inbound_video->jitter.ValueOrDefault(0);
@@ -440,32 +488,24 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
           video_codec->second->channels.ValueOrDefault(0);
     }
 
-    std::string str_track_id = *inbound_video->track_id;
-    if (!str_track_id.empty()) {
-      auto video_track = track_map.find(str_track_id);
-      if (video_track != track_map.end()) {
-        //track信息
-        if (video_track->second)
-        {
-          video_stats.freeze_count =
-              video_track->second->freeze_count.ValueOrDefault(0);
-          video_stats.total_freezes_duration =
-              video_track->second->total_freezes_duration.ValueOrDefault(0);
-          video_stats.total_pauses_duration =
-              video_track->second->total_pauses_duration.ValueOrDefault(0);
-          video_stats.total_frames_duration =
-              video_track->second->total_frames_duration.ValueOrDefault(0);
-          video_stats.sum_squared_frame_durations =
-              video_track->second->sum_squared_frame_durations.ValueOrDefault(
-                  0);
-        }
-      }
+    // track信息
+    if (track_iter->second) {
+      video_stats.freeze_count =
+          track_iter->second->freeze_count.ValueOrDefault(0);
+      video_stats.total_freezes_duration =
+          track_iter->second->total_freezes_duration.ValueOrDefault(0);
+      video_stats.total_pauses_duration =
+          track_iter->second->total_pauses_duration.ValueOrDefault(0);
+      video_stats.total_frames_duration =
+          track_iter->second->total_frames_duration.ValueOrDefault(0);
+      video_stats.sum_squared_frame_durations =
+          track_iter->second->sum_squared_frame_durations.ValueOrDefault(0);
     }
 
     video_stats.fraction_lost = 0;
     video_stats.bitrate_recv = 0;
     video_stats.video_caton_ms = 0; 
-    auto video_item = stats_.videos.find(video_stats.ssrc);
+    auto video_item = stats_.videos.find(track_identifier);
     if (video_item != stats_.videos.end()) {
       // 计算丢包
       if (video_item->second.packets_received != video_stats.packets_received) {
@@ -485,7 +525,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
 
       video_stats.video_caton_ms = video_stats.total_caton_delay_ms - video_item->second.total_caton_delay_ms;
     }
-    stats.videos.insert(std::make_pair(video_stats.ssrc, video_stats));
+    stats.videos.insert(std::make_pair(track_identifier, video_stats));
   }
 
     for (auto iter = transport_map.begin(); iter != transport_map.end(); ++iter) {

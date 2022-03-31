@@ -66,8 +66,8 @@ struct RTCOutBandStats {
   uint64_t bytes_sent = 0;                   // transport bytesSent
   uint64_t packets_sent = 0;                 // transport packetsSent
 
-  std::map<uint32_t, RTCAudioOutBandStats> audios;  // bitrate
-  std::map<uint32_t, RTCVideoOutBandStats> videos;  //
+  std::map<std::string, RTCAudioOutBandStats> audios;  // bitrate
+  std::map<std::string, RTCVideoOutBandStats> videos;  //
 
 };
 
@@ -151,8 +151,8 @@ struct RTCInBandStats {
   uint64_t bytes_recv = 0;     // transport bytesSent
   uint64_t packets_recv = 0;   // transport packetsSent
 
-  std::map<uint32_t, RTCAudioInBandStats> audios;  // bitrate
-  std::map<uint32_t, RTCVideoInBandStats> videos;   //
+  std::map<std::string, RTCAudioInBandStats> audios;  // bitrate
+  std::map<std::string, RTCVideoInBandStats> videos;  //
 };
 
 namespace webrtc {
@@ -187,6 +187,8 @@ class RTCOutBoundStatsCollectorCallBack : public RTCStatsCollectorCallback {
   std::map<std::string, const webrtc::RTCTransportStats*> transport_map;
 
   std::map<std::string, const webrtc::RTCIceCandidatePairStats*> candidate_pair_map;
+
+  std::map<std::string, const webrtc::RTCMediaStreamTrackStats*> track_map;
 
   RTCOutBandStats stats_;
 }; 

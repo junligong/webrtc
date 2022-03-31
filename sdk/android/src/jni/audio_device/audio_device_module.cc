@@ -397,7 +397,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
 
   int32_t MicrophoneVolume(uint32_t* volume) const override {
     RTC_DLOG(INFO) << __FUNCTION__;
-    RTC_CHECK_NOTREACHED();
+   // RTC_CHECK_NOTREACHED();
+    return 0;
   }
 
   int32_t MaxMicrophoneVolume(uint32_t* maxVolume) const override {

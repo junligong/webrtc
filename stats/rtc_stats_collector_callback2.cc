@@ -257,6 +257,10 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
         }
       }
     }
+
+    if (!(*video_outbound->rid).empty()){
+      track_identifier += *video_outbound->rid;
+    }
     stats.videos[track_identifier] = video_outband_stats;
   }
 

@@ -180,6 +180,10 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
     }
     track_identifier = *track_iter->second->track_identifier;
 
+    if (!(*video_outbound->rid).empty()) {
+      track_identifier += *video_outbound->rid;
+    }
+
     RTCVideoOutBandStats video_outband_stats;
     video_outband_stats.ssrc = video_outbound->ssrc.ValueOrDefault(0);
     video_outband_stats.bitrate_send = 0;
@@ -256,10 +260,6 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
               (video_outband_stats.frames_encoded - video_iter->second.frames_encoded);
         }
       }
-    }
-
-    if (!(*video_outbound->rid).empty()){
-      track_identifier += *video_outbound->rid;
     }
     stats.videos[track_identifier] = video_outband_stats;
   }

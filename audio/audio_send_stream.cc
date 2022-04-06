@@ -498,14 +498,6 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
     stats.apm_statistics = ap->GetStatistics(has_remote_tracks);
   }
 
-  AudioDeviceModule* device_module = audio_state_->audio_device_module();
-  if (device_module) {
-    uint32_t volume;
-    if (device_module->MicrophoneVolume(&volume) == 0) {
-      stats.audio_volume = volume / 255.0;
-    }
-  }
-
   stats.report_block_datas = std::move(call_stats.report_block_datas);
 
   return stats;

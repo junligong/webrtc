@@ -27,6 +27,8 @@ RTC_OBJC_EXPORT
 
 - (id<RTC_OBJC_TYPE(RTCI420Buffer)>)toI420;
 
+- (id<RTC_OBJC_TYPE(RTCVideoFrameBuffer)>)mirror;
+
 @end
 
 NS_ASSUME_NONNULL_END

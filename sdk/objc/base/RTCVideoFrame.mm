@@ -9,7 +9,6 @@
  */
 
 #import "RTCVideoFrame.h"
-
 #import "RTCI420Buffer.h"
 #import "RTCVideoFrameBuffer.h"
 
@@ -41,6 +40,13 @@
   return [[RTC_OBJC_TYPE(RTCVideoFrame) alloc] initWithBuffer:[_buffer toI420]
                                                      rotation:_rotation
                                                   timeStampNs:_timeStampNs];
+}
+
+- (RTC_OBJC_TYPE(RTCVideoFrame) *)newMirrorVideoFrame {
+    
+    return [[RTC_OBJC_TYPE(RTCVideoFrame) alloc] initWithBuffer:[_buffer mirror]
+                                                       rotation:_rotation
+                                                    timeStampNs:_timeStampNs];
 }
 
 - (instancetype)initWithPixelBuffer:(CVPixelBufferRef)pixelBuffer

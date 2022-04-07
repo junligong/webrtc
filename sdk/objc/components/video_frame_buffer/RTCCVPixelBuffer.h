@@ -47,10 +47,6 @@ RTC_OBJC_EXPORT
 - (BOOL)cropAndScaleTo:(CVPixelBufferRef)outputPixelBuffer
         withTempBuffer:(nullable uint8_t *)tmpBuffer;
 
-
-/// 镜像处理
-- (CVPixelBufferRef)mirrorBuffer;
-
 @end
 
 NS_ASSUME_NONNULL_END

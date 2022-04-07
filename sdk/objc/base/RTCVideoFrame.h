@@ -80,6 +80,12 @@ RTC_OBJC_EXPORT
  *  the YUV data on it.
  */
 - (RTC_OBJC_TYPE(RTCVideoFrame) *)newI420VideoFrame;
+Buffer
+
+
+/** Return a mirror video frame
+ */
+- (RTC_OBJC_TYPE(RTCVideoFrame) *)newMirrorVideoFrame;
 
 @end
 

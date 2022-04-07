@@ -250,7 +250,8 @@
   return i420Buffer;
 }
 
-- (CVPixelBufferRef)mirrorBuffer {
+- (id<RTCVideoFrameBuffer>)mirror {
+    
     //CVPixelBufferRef是CVImageBufferRef的别名,两者操作几乎一致。
     //获取CMSampleBuffer的图像地址
     CVImageBufferRef pixelBuffer = self.pixelBuffer;
@@ -316,8 +317,12 @@
     }
     CVPixelBufferUnlockBaseAddress(dstPixelBuffer, 0);
     free(nv12_y);
-
-    return dstPixelBuffer;
+    
+    RTCCVPixelBuffer *cvPixelBuffer = [[RTCCVPixelBuffer alloc] initWithPixelBuffer:dstPixelBuffer];
+    
+    CVPixelBufferRelease(dstPixelBuffer);
+    
+    return cvPixelBuffer;
 }
 
 #pragma mark - Debugging

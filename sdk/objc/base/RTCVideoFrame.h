@@ -81,6 +81,8 @@ RTC_OBJC_EXPORT
  */
 - (RTC_OBJC_TYPE(RTCVideoFrame) *)newI420VideoFrame;
 
+
+//@shamo
 /** Return a mirror video frame
  */
 - (RTC_OBJC_TYPE(RTCVideoFrame) *)newMirrorVideoFrame;

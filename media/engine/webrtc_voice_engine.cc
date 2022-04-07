@@ -2466,7 +2466,6 @@ bool WebRtcVoiceMediaChannel::GetStats(VoiceMediaInfo* info,
     sinfo.ana_statistics = stats.ana_statistics;
     sinfo.apm_statistics = stats.apm_statistics;
     sinfo.report_block_datas = std::move(stats.report_block_datas);
-    sinfo.audio_volume = stats.audio_volume;
     info->senders.push_back(sinfo);
   }
 
@@ -2554,7 +2553,6 @@ bool WebRtcVoiceMediaChannel::GetStats(VoiceMediaInfo* info,
     rinfo.sender_reports_packets_sent = stats.sender_reports_packets_sent;
     rinfo.sender_reports_bytes_sent = stats.sender_reports_bytes_sent;
     rinfo.sender_reports_reports_count = stats.sender_reports_reports_count;
-    rinfo.audio_volume = stats.audio_volume;
     info->receivers.push_back(rinfo);
   }
 

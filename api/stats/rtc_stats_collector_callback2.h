@@ -4,6 +4,7 @@
 #include "api/stats/rtcstats_objects.h"
 #include <map>
 #include <string>
+#include <mutex>
 
 enum NetworkQuality { 
   kPoor,                  // 质量很差
@@ -241,6 +242,7 @@ class RTCOutBoundStatsCollectorCallBack : public RTCStatsCollectorCallback {
   std::map<std::string, const webrtc::RTCMediaStreamTrackStats*> track_map;
 
   RTCOutBandStats stats_;
+  mutable std::mutex mutex_;
 }; 
 
 // 下行统计
@@ -276,6 +278,7 @@ private:
   std::map<std::string, const webrtc::RTCMediaStreamTrackStats*> track_map;
 
   RTCInBandStats stats_;
+  mutable std::mutex mutex_;
 };
 
 RTC_EXPORT rtc::scoped_refptr<webrtc::RTCOutBoundStatsCollectorCallBack>

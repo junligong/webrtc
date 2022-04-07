@@ -143,8 +143,8 @@ std::vector<VideoCodec> GetPayloadTypesAndDefaultCodecs(
   int payload_type_upper = kFirstDynamicPayloadTypeUpperRange;
   int payload_type_lower = kFirstDynamicPayloadTypeLowerRange;
 
-  supported_formats.push_back(webrtc::SdpVideoFormat(kRedCodecName));
-  supported_formats.push_back(webrtc::SdpVideoFormat(kUlpfecCodecName));
+//  supported_formats.push_back(webrtc::SdpVideoFormat(kRedCodecName));
+//  supported_formats.push_back(webrtc::SdpVideoFormat(kUlpfecCodecName));
 
   // flexfec-03 is supported as
   // - receive codec unless WebRTC-FlexFEC-03-Advertised is disabled

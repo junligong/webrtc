@@ -30,8 +30,13 @@ const size_t kMaxVp9RefPics = 3;
 const size_t kMaxVp9FramesInGof = 0xFF;  // 8 bits
 const size_t kMaxVp9NumberOfSpatialLayers = 8;
 
+#if defined(WEBRTC_IOS) || defined(WEBRTC_ANDROID)
+const size_t kMinVp9SpatialLayerWidth = 135;
+const size_t kMinVp9SpatialLayerHeight = 240;
+#else
 const size_t kMinVp9SpatialLayerWidth = 240;
 const size_t kMinVp9SpatialLayerHeight = 135;
+#endif
 
 enum TemporalStructureMode {
   kTemporalStructureMode1,  // 1 temporal layer structure - i.e., IPPP...

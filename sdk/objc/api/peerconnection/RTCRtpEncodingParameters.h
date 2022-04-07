@@ -71,6 +71,8 @@ RTC_OBJC_EXPORT
 
 - (instancetype)init;
 
+- (NSValue *)getNativeEncodingParameters;
+
 @end
 
 NS_ASSUME_NONNULL_END

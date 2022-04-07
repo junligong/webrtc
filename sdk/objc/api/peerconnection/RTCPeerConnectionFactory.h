@@ -30,6 +30,29 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol RTC_OBJC_TYPE
 (RTCVideoEncoderFactory);
 
+@protocol RTCAudioDataObserver <NSObject>
+
+@optional
+
+- (void)onCaptureData:(const void *)audioSamples
+           numSamples:(size_t)numSamples
+       bytesPerSample:(size_t)bytesPerSample
+          numChannels:(size_t)numChannels
+        samplesPerSec:(uint32_t)samplesPerSec;
+
+- (void)onRenderData:(const void *)audioSamples
+           numSamples:(size_t)numSamples
+       bytesPerSample:(size_t)bytesPerSample
+          numChannels:(size_t)numChannels
+        samplesPerSec:(uint32_t)samplesPerSec;
+
+/// Calculate the relative ratio from the RMS of each channel
+/// audioLevel 0~1
+/// Execute once in 50ms
+- (void)onCaptureAudioLevel:(float)audioLevel;
+
+@end
+
 RTC_OBJC_EXPORT
 @interface RTC_OBJC_TYPE (RTCPeerConnectionFactory) : NSObject
 
@@ -38,6 +61,12 @@ RTC_OBJC_EXPORT
 
 - (instancetype)intWithVideoEncoderUseH264:(BOOL)isVideoEncoderUseH264
                       videoDecoderUserH264:(BOOL)isVideoDecoderUserH264;
+
+
+/* Initialize object with default H264 video encoder/decoder factories and audio data listener */
+- (instancetype)intWithVideoEncoderUseH264:(BOOL)isVideoEncoderUseH264
+                      videoDecoderUserH264:(BOOL)isVideoDecoderUserH264
+                              dataObserver:(id<RTCAudioDataObserver> _Nullable)observer;
 
 /* Initialize object with injectable video encoder/decoder factories */
 - (instancetype)

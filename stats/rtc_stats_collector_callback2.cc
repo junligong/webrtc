@@ -8,6 +8,7 @@
 namespace webrtc {
 
 RTCOutBandStats RTCOutBoundStatsCollectorCallBack::GetOutBandStats() const {
+  std::lock_guard<std::mutex> guard(mutex_);
   return stats_;
 }
 
@@ -286,11 +287,12 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
 
      stats.quailty_parameter.fraction_lost = stats.packets_lost / std::abs(double(stats.packets_sent - stats_.packets_sent));
    }
-
+  std::lock_guard<std::mutex> guard(mutex_);
   stats_ = stats;
 }
 
 RTCInBandStats RTCInBoundStatsCollectorCallBack::GetInBandStats() const {
+  std::lock_guard<std::mutex> guard(mutex_);
   return stats_;
 }
 
@@ -566,7 +568,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
 
     stats.quailty_parameter.fraction_lost = double(stats.packets_lost - stats_.packets_lost) / double(stats.packets_received - stats_.packets_received);
   }
-
+  std::lock_guard<std::mutex> guard(mutex_);
   stats_ = stats;
 }
 

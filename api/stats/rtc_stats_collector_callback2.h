@@ -132,7 +132,10 @@ struct RTCAudioInBandStats {
   double audio_level = 0;
   double total_audio_energy = 0;
   double total_samples_duration = 0;
-  double audio_volume = 0;  // [0、1]
+  double audio_volume = 0; 
+
+   // RTCTrackStats
+  double relativePacketArrivalDelay;
 
   // RTCCodecStats
   RTCCodec audio_codec;
@@ -142,6 +145,7 @@ struct RTCAudioInBandStats {
   RTCInBoundNetworkQuality quailty_parameter;
   NetworkQuality network_quality = kNormal;
   double audio_caton_ms = 0;
+  double audio_delay = 0;
 };
 
 struct RTCVideoInBandStats {

@@ -443,6 +443,13 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
           audio_codec->second->channels.ValueOrDefault(0);
     }
 
+    // tarck
+    auto audio_track = track_map.find(*inbound_audio->track_id);
+    if (audio_track != track_map.end() && audio_track->second) {
+      audio_stats.relativePacketArrivalDelay =
+          audio_track->second->relative_packet_arrival_delay.ValueOrDefault(0);
+    }
+
     auto audio_item = stats_.audios.find(track_identifier);
     if (audio_item != stats_.audios.end()) {
       //已有数据则合并，相邻数据
@@ -461,7 +468,10 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
             (audio_stats.total_samples_duration - audio_item->second.total_samples_duration) *
             1000.0 / (double)(audio_stats.total_samples_received - audio_item->second.total_samples_received);
       }
-
+      if (audio_stats.packets_received != audio_item->second.packets_received) {
+        audio_stats.audio_delay = (audio_stats.relativePacketArrivalDelay - audio_item->second.relativePacketArrivalDelay) *
+            1000.0 / (audio_stats.packets_received - audio_item->second.packets_received);
+      }
     }
     // 统计整体丢包数
     stats.packets_lost += inbound_audio->packets_lost.ValueOrDefault(0);

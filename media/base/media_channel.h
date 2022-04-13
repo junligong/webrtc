@@ -451,6 +451,8 @@ struct VoiceSenderInfo : public MediaSenderInfo {
   bool typing_noise_detected = false;
   webrtc::ANAStats ana_statistics;
   webrtc::AudioProcessingStats apm_statistics;
+  // gjl
+  double audio_volume = 0;
 };
 
 struct VoiceReceiverInfo : public MediaReceiverInfo {
@@ -521,6 +523,8 @@ struct VoiceReceiverInfo : public MediaReceiverInfo {
   uint32_t sender_reports_packets_sent = 0;
   uint64_t sender_reports_bytes_sent = 0;
   uint64_t sender_reports_reports_count = 0;
+  // gjl
+  double audio_volume = 0;
 };
 
 struct VideoSenderInfo : public MediaSenderInfo {

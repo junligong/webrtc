@@ -645,6 +645,7 @@ WEBRTC_RTCSTATS_IMPL(
     &concealment_events,
     &inserted_samples_for_deceleration,
     &removed_samples_for_acceleration,
+    &audio_volume,
     &audio_level,
     &total_audio_energy,
     &total_samples_duration,
@@ -705,6 +706,7 @@ RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(std::string&& id,
       concealment_events("concealmentEvents"),
       inserted_samples_for_deceleration("insertedSamplesForDeceleration"),
       removed_samples_for_acceleration("removedSamplesForAcceleration"),
+      audio_volume("audioVolume"),
       audio_level("audioLevel"),
       total_audio_energy("totalAudioEnergy"),
       total_samples_duration("totalSamplesDuration"),
@@ -761,6 +763,7 @@ RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(
       inserted_samples_for_deceleration(
           other.inserted_samples_for_deceleration),
       removed_samples_for_acceleration(other.removed_samples_for_acceleration),
+      audio_volume(other.audio_volume),
       audio_level(other.audio_level),
       total_audio_energy(other.total_audio_energy),
       total_samples_duration(other.total_samples_duration),
@@ -866,7 +869,8 @@ RTCOutboundRTPStreamStats::RTCOutboundRTPStreamStats(std::string&& id,
       fir_count("firCount"),
       pli_count("pliCount"),
       nack_count("nackCount"),
-      qp_sum("qpSum") {}
+      qp_sum("qpSum"),
+      audio_volume("audioVolume") {}
 
 RTCOutboundRTPStreamStats::RTCOutboundRTPStreamStats(
     const RTCOutboundRTPStreamStats& other)
@@ -898,7 +902,8 @@ RTCOutboundRTPStreamStats::RTCOutboundRTPStreamStats(
       fir_count(other.fir_count),
       pli_count(other.pli_count),
       nack_count(other.nack_count),
-      qp_sum(other.qp_sum) {}
+      qp_sum(other.qp_sum),
+      audio_volume("audioVolume") {}
 
 RTCOutboundRTPStreamStats::~RTCOutboundRTPStreamStats() {}
 

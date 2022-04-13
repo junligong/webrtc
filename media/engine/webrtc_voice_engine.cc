@@ -2553,7 +2553,6 @@ bool WebRtcVoiceMediaChannel::GetStats(VoiceMediaInfo* info,
     rinfo.sender_reports_packets_sent = stats.sender_reports_packets_sent;
     rinfo.sender_reports_bytes_sent = stats.sender_reports_bytes_sent;
     rinfo.sender_reports_reports_count = stats.sender_reports_reports_count;
-
     info->receivers.push_back(rinfo);
   }
 

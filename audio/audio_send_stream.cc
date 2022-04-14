@@ -476,7 +476,6 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
   if (ap) {
     stats.apm_statistics = ap->GetStatistics(has_remote_tracks);
   }
-
   stats.report_block_datas = std::move(call_stats.report_block_datas);
 
   stats.nacks_rcvd = call_stats.nacks_rcvd;

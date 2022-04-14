@@ -71,6 +71,8 @@ class AudioSendStream : public AudioSender {
     // received for that pair.
     std::vector<ReportBlockData> report_block_datas;
     uint32_t nacks_rcvd = 0;
+    // gjl
+    double audio_volume = 0;
   };
 
   struct Config {

@@ -461,6 +461,8 @@ struct VoiceSenderInfo : public MediaSenderInfo {
   bool typing_noise_detected = false;
   webrtc::ANAStats ana_statistics;
   webrtc::AudioProcessingStats apm_statistics;
+  // gjl
+  double audio_volume = 0;
 };
 
 struct VoiceReceiverInfo : public MediaReceiverInfo {
@@ -535,6 +537,8 @@ struct VoiceReceiverInfo : public MediaReceiverInfo {
   absl::optional<webrtc::TimeDelta> round_trip_time;
   webrtc::TimeDelta total_round_trip_time = webrtc::TimeDelta::Zero();
   int round_trip_time_measurements = 0;
+  // gjl
+  double audio_volume = 0;
 };
 
 struct VideoSenderInfo : public MediaSenderInfo {

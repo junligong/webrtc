@@ -370,6 +370,7 @@ std::unique_ptr<RTCInboundRTPStreamStats> CreateInboundAudioStreamStats(
       voice_receiver_info.inserted_samples_for_deceleration;
   inbound_audio->removed_samples_for_acceleration =
       voice_receiver_info.removed_samples_for_acceleration;
+  inbound_audio->audio_volume = voice_receiver_info.audio_volume;
   if (voice_receiver_info.audio_level >= 0) {
     inbound_audio->audio_level =
         DoubleAudioLevelFromIntAudioLevel(voice_receiver_info.audio_level);
@@ -554,7 +555,8 @@ void SetOutboundRTPStreamStatsFromVoiceSenderInfo(
     outbound_audio->codec_id = RTCCodecStatsIDFromMidDirectionAndPayload(
         mid, /*inbound=*/false, *voice_sender_info.codec_payload_type);
   }
-  // `fir_count`, `pli_count` and `sli_count` are only valid for video and are
+  outbound_audio->audio_volume = voice_sender_info.audio_volume;
+  // |fir_count|, |pli_count| and |sli_count| are only valid for video and are
   // purposefully left undefined for audio.
 }
 

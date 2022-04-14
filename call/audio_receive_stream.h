@@ -99,6 +99,8 @@ class AudioReceiveStream : public MediaReceiveStream {
     absl::optional<TimeDelta> round_trip_time;
     TimeDelta total_round_trip_time = TimeDelta::Zero();
     int round_trip_time_measurements;
+    // gjl
+    double audio_volume = 0;
   };
 
   struct Config {

@@ -497,6 +497,7 @@ if (is_ios || is_mac) {
       allow_poison = [
         "audio_codecs",  # TODO(bugs.webrtc.org/8396): Remove.
         "default_task_queue",
+        "software_video_codecs", # @fujisheng
       ]
       if (is_ios) {
         sources = [
@@ -1455,7 +1456,6 @@ if (is_ios || is_mac) {
           "objc/components/video_frame_buffer/RTCCVPixelBuffer.h",
           "objc/helpers/RTCDispatcher.h",
           "objc/api/peerconnection/RTCCrystalPacketObserver.h",
-          "objc/api/peerconnection/RTCStatisticsReport.h",
         ]
         if (!build_with_chromium) {
           sources += [

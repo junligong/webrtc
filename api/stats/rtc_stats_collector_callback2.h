@@ -4,6 +4,7 @@
 #include "api/stats/rtcstats_objects.h"
 #include <map>
 #include <string>
+#include <mutex>
 
 enum NetworkQuality { 
   kPoor,                  // 质量很差
@@ -82,7 +83,6 @@ struct RTCVideoOutBandStats {
   uint64_t target_delay_ms = 0;              // totalPacketSendDelay差 / packetsSent差
   uint64_t retransmitted_bytes_sent = 0;
   NetworkQuality network_quality = kNormal;
-
 };
 
 // 上行总计
@@ -103,7 +103,6 @@ struct RTCOutBandStats {
 
   std::map<std::string, RTCAudioOutBandStats> audios; 
   std::map<std::string, RTCVideoOutBandStats> videos;  
-
 };
 
 // 下行质量评估
@@ -133,7 +132,10 @@ struct RTCAudioInBandStats {
   double audio_level = 0;
   double total_audio_energy = 0;
   double total_samples_duration = 0;
-  double audio_volume = 0;  // [0、1]
+  double audio_volume = 0; 
+
+   // RTCTrackStats
+  double relativePacketArrivalDelay = 0;
 
   // RTCCodecStats
   RTCCodec audio_codec;
@@ -143,6 +145,7 @@ struct RTCAudioInBandStats {
   RTCInBoundNetworkQuality quailty_parameter;
   NetworkQuality network_quality = kNormal;
   double audio_caton_ms = 0;
+  double audio_delay = 0;
 };
 
 struct RTCVideoInBandStats {
@@ -243,6 +246,7 @@ class RTCOutBoundStatsCollectorCallBack : public RTCStatsCollectorCallback {
   std::map<std::string, const webrtc::RTCMediaStreamTrackStats*> track_map;
 
   RTCOutBandStats stats_;
+  mutable std::mutex mutex_;
 }; 
 
 // 下行统计
@@ -251,6 +255,7 @@ class RTCInBoundStatsCollectorCallBack : public RTCStatsCollectorCallback {
    RTCInBoundStatsCollectorCallBack() = default;
 	 ~RTCInBoundStatsCollectorCallBack() override = default;
 
+   void SetProbatorSsrc(uint32_t probator_ssrc);
    RTCInBandStats GetInBandStats() const;
 
  protected:
@@ -278,6 +283,9 @@ private:
   std::map<std::string, const webrtc::RTCMediaStreamTrackStats*> track_map;
 
   RTCInBandStats stats_;
+  uint32_t probator_ssrc_;
+  mutable std::mutex mutex_;
+
 };
 
 RTC_EXPORT rtc::scoped_refptr<webrtc::RTCOutBoundStatsCollectorCallBack>
@@ -285,8 +293,6 @@ CreatOutBoundStatsCollectorCallBack();
 
 RTC_EXPORT rtc::scoped_refptr<webrtc::RTCInBoundStatsCollectorCallBack>
 CreatInBoundStatsCollectorCallBack();
-
-
 
 }
 

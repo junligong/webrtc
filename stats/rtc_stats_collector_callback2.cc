@@ -277,6 +277,15 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
                             video_outband_stats.packets_sent - video_iter->second.packets_sent, 
                             video_outband_stats.target_delay_ms);
 
+        // 计算发送帧率
+        if (video_outband_stats.frames_per_second == 0) {
+          division_operation( (video_outband_stats.frames_sent - video_iter->second.frames_sent) * 1000000.0,
+                               stats.timestamp - stats_.timestamp,
+                               video_outband_stats.frames_per_second);
+
+          video_outband_stats.frames_per_second = round(video_outband_stats.frames_per_second);
+        }
+
         // 丢包 = 发包差 * 丢包率
         stats.packets_lost = stats.packets_lost + std::abs(int(video_outband_stats.packets_sent - video_iter->second.packets_sent)) *
             video_outband_stats.quailty_parameter.fraction_lost;

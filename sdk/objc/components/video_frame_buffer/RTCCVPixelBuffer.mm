@@ -250,6 +250,81 @@
   return i420Buffer;
 }
 
+- (id<RTCVideoFrameBuffer>)mirror {
+    
+    //CVPixelBufferRef是CVImageBufferRef的别名,两者操作几乎一致。
+    //获取CMSampleBuffer的图像地址
+    CVImageBufferRef pixelBuffer = self.pixelBuffer;
+    if (!pixelBuffer) {
+        return nil;
+    }
+    //表示开始操作数据
+    CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+    //图像宽度(像素)
+    size_t buffer_width = CVPixelBufferGetWidth(pixelBuffer);
+    //图像高度(像素)
+    size_t buffer_height = CVPixelBufferGetHeight(pixelBuffer);
+    //获取CVImageBufferRef中的y数据
+    uint8_t *src_y_frame = (unsigned char *)CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0);
+    //获取CMVImageBufferRef中的uv数据
+    uint8_t *src_uv_frame =(unsigned char *) CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1);
+    //y stride
+    size_t plane1_stride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);
+    //uv stride
+    size_t plane2_stride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1);
+    //y height
+    size_t plane1_height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0);
+    //uv height
+    size_t plane2_height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 1);
+    //y_size
+    size_t plane1_size = plane1_stride * plane1_height;
+    //uv_size
+    size_t plane2_size = plane2_stride * plane2_height;
+    //yuv_size(内存空间)
+    size_t frame_size = plane1_size + plane2_size;
+
+    uint8_t *nv12_y = (uint8_t *)malloc(frame_size);
+    uint8_t *nv12_uv = nv12_y + plane1_stride * plane1_height;
+    
+    // 1. NV12镜像
+    libyuv::NV12Mirror(/*const uint8_t *src_y*/ src_y_frame,
+                       /*int src_stride_y*/ (int)plane1_stride,
+                       /*const uint8_t *src_uv*/ src_uv_frame,
+                       /*int src_stride_uv*/ (int)plane1_stride >> plane2_stride,
+                       /*uint8_t *dst_y*/ nv12_y,
+                       /*int dst_stride_y*/ (int)plane1_stride,
+                       /*uint8_t *dst_uv*/ nv12_uv,
+                       /*int dst_stride_uv*/ (int)plane1_stride >> plane2_stride,
+                       /*int width*/ (int)buffer_width,
+                       /*int height*/ (int)buffer_height);
+    
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+    
+    // 2.NV12转换为CVPixelBufferRef
+    NSDictionary *pixelAttributes = @{(id)kCVPixelBufferIOSurfacePropertiesKey : @{}};
+    CVPixelBufferRef dstPixelBuffer = NULL;
+    CVReturn result = CVPixelBufferCreate(kCFAllocatorDefault,
+                                          buffer_width, buffer_height, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                                          (__bridge CFDictionaryRef)pixelAttributes, &dstPixelBuffer);
+
+    CVPixelBufferLockBaseAddress(dstPixelBuffer, 0);
+    uint8_t *yDstPlane = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(dstPixelBuffer, 0);
+    memcpy(yDstPlane, nv12_y, plane1_size);
+    uint8_t *uvDstPlane = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(dstPixelBuffer, 1);
+    memcpy(uvDstPlane, nv12_uv, plane2_size);
+    if (result != kCVReturnSuccess) {
+        NSLog(@"Unable to create cvpixelbuffer %d", result);
+    }
+    CVPixelBufferUnlockBaseAddress(dstPixelBuffer, 0);
+    free(nv12_y);
+    
+    RTCCVPixelBuffer *cvPixelBuffer = [[RTCCVPixelBuffer alloc] initWithPixelBuffer:dstPixelBuffer];
+    
+    CVPixelBufferRelease(dstPixelBuffer);
+    
+    return cvPixelBuffer;
+}
+
 #pragma mark - Debugging
 
 #if !defined(NDEBUG) && defined(WEBRTC_IOS)

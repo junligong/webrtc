@@ -49,10 +49,12 @@ static webrtc::ObjCVideoTrackSource *getObjCVideoSource(
 }
 
 - (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+                   isScreenMode:(BOOL)isScreenMode
                 signalingThread:(rtc::Thread *)signalingThread
                    workerThread:(rtc::Thread *)workerThread {
   rtc::scoped_refptr<webrtc::ObjCVideoTrackSource> objCVideoTrackSource(
       new rtc::RefCountedObject<webrtc::ObjCVideoTrackSource>());
+    (objCVideoTrackSource.get())->isScreenMode = isScreenMode ? true : false;
 
   return [self initWithFactory:factory
              nativeVideoSource:webrtc::VideoTrackSourceProxy::Create(

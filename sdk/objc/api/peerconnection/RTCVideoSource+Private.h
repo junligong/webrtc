@@ -38,6 +38,7 @@ NS_ASSUME_NONNULL_BEGIN
                            type:(RTCMediaSourceType)type NS_UNAVAILABLE;
 
 - (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+                   isScreenMode:(BOOL)isScreenMode
                 signalingThread:(rtc::Thread *)signalingThread
                    workerThread:(rtc::Thread *)workerThread;
 

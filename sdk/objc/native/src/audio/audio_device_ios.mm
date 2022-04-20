@@ -351,7 +351,9 @@ void AudioDeviceIOS::OnInterruptionEnd() {
 
 void AudioDeviceIOS::OnValidRouteChange() {
   RTC_DCHECK(thread_);
-  thread_->Post(RTC_FROM_HERE, this, kMessageTypeValidRouteChange);
+  if (thread_ != nullptr) {
+    thread_->Post(RTC_FROM_HERE, this, kMessageTypeValidRouteChange);
+  }
 }
 
 void AudioDeviceIOS::OnCanPlayOrRecordChange(bool can_play_or_record) {

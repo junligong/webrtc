@@ -16,6 +16,7 @@
 
 #include "api/video/i420_buffer.h"
 #include "sdk/objc/native/src/objc_frame_buffer.h"
+#include "rtc_base/logging.h"
 
 @interface RTCObjCVideoSourceAdapter ()
 @property(nonatomic) webrtc::ObjCVideoTrackSource *objCVideoTrackSource;
@@ -42,7 +43,8 @@ ObjCVideoTrackSource::ObjCVideoTrackSource(RTCObjCVideoSourceAdapter *adapter) :
 }
 
 bool ObjCVideoTrackSource::is_screencast() const {
-  return false;
+    bool result = this->isScreenMode;
+  return result;
 }
 
 absl::optional<bool> ObjCVideoTrackSource::needs_denoising() const {

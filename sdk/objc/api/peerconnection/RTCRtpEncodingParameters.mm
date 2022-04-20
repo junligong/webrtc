@@ -125,4 +125,9 @@
   }
 }
 
+- (NSValue *)getNativeEncodingParameters {
+    webrtc::RtpEncodingParameters nativeParams = [self nativeParameters];
+    return [NSValue value:&nativeParams withObjCType:@encode(webrtc::RtpEncodingParameters)];
+}
+
 @end

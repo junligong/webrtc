@@ -12,9 +12,9 @@
 
 #include "api/video/i420_buffer.h"
 
+#include "third_party/libyuv/include/libyuv.h"
 #if !defined(NDEBUG) && defined(WEBRTC_IOS)
 #import <UIKit/UIKit.h>
-#include "third_party/libyuv/include/libyuv.h"
 #endif
 
 @implementation RTC_OBJC_TYPE (RTCI420Buffer)
@@ -101,6 +101,59 @@
 
 - (id<RTC_OBJC_TYPE(RTCI420Buffer)>)toI420 {
   return self;
+}
+
+- (CVPixelBufferRef)nativePixelBuffer {
+    CVPixelBufferRef pixelBuffer = NULL;
+
+    NSDictionary *pixelBufferAttributes = [NSDictionary dictionaryWithObjectsAndKeys:
+                                           [NSDictionary dictionary], (id)kCVPixelBufferIOSurfacePropertiesKey,
+                                           nil];
+
+    CVReturn result = CVPixelBufferCreate(kCFAllocatorDefault,
+                                          self.width,
+                                          self.height,
+                                          kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                                          (__bridge CFDictionaryRef)pixelBufferAttributes,
+                                          &pixelBuffer);
+
+    if (result != kCVReturnSuccess) {
+        return NULL;
+    }
+
+    result = CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+
+    if (result != kCVReturnSuccess) {
+        CFRelease(pixelBuffer);
+        return NULL;
+    }
+
+    uint8_t *dstY = reinterpret_cast<uint8_t *>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0));
+    int dstStrideY = (int)CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);
+    uint8_t *dstUV = reinterpret_cast<uint8_t *>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1));
+    int dstStrideUV = (int)CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1);
+
+    // Convert I420 to NV12.
+    int ret = libyuv::I420ToNV12(self.dataY,
+                                 self.strideY,
+                                 self.dataU,
+                                 self.strideU,
+                                 self.dataV,
+                                 self.strideV,
+                                 dstY,
+                                 dstStrideY,
+                                 dstUV,
+                                 dstStrideUV,
+                                 self.width,
+                                 self.height);
+
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+    if (ret) {
+        CFRelease(pixelBuffer);
+        return NULL;
+    }
+
+    return pixelBuffer;
 }
 
 #pragma mark - Private

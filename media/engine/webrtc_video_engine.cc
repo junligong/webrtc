@@ -143,8 +143,8 @@ std::vector<VideoCodec> GetPayloadTypesAndDefaultCodecs(
   int payload_type_upper = kFirstDynamicPayloadTypeUpperRange;
   int payload_type_lower = kFirstDynamicPayloadTypeLowerRange;
 
-  supported_formats.push_back(webrtc::SdpVideoFormat(kRedCodecName));
-  supported_formats.push_back(webrtc::SdpVideoFormat(kUlpfecCodecName));
+//  supported_formats.push_back(webrtc::SdpVideoFormat(kRedCodecName));
+//  supported_formats.push_back(webrtc::SdpVideoFormat(kUlpfecCodecName));
 
   // flexfec-03 is supported as
   // - receive codec unless WebRTC-FlexFEC-03-Advertised is disabled
@@ -490,6 +490,7 @@ WebRtcVideoChannel::WebRtcVideoSendStream::ConfigureVideoEncoderSettings(
   bool denoising;
   bool codec_default_denoising = false;
   if (is_screencast) {
+      RTC_LOG(LS_INFO) << "ConfigureVideoEncoderSettings use screencast:";
     denoising = false;
   } else {
     // Use codec default if video_noise_reduction is unset.
@@ -2433,6 +2434,8 @@ WebRtcVideoChannel::WebRtcVideoSendStream::CreateVideoEncoderConfig(
         1000 * parameters_.options.screencast_min_bitrate_kbps.value_or(0);
     encoder_config.content_type =
         webrtc::VideoEncoderConfig::ContentType::kScreen;
+
+      RTC_LOG(LS_INFO) << "CreateVideoEncoderConfig use screencast:";
   } else {
     encoder_config.min_transmit_bitrate_bps = 0;
     encoder_config.content_type =

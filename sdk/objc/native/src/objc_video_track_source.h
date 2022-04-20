@@ -29,6 +29,7 @@ class ObjCVideoTrackSource : public rtc::AdaptedVideoTrackSource {
   ObjCVideoTrackSource();
   explicit ObjCVideoTrackSource(RTCObjCVideoSourceAdapter* adapter);
 
+  bool isScreenMode;
   // This class can not be used for implementing screen casting. Hopefully, this
   // function will be removed before we add that to iOS/Mac.
   bool is_screencast() const override;

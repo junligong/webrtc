@@ -41,6 +41,8 @@ RTC_OBJC_EXPORT
                       strideU:(int)strideU
                       strideV:(int)strideV;
 
+- (CVPixelBufferRef)nativePixelBuffer;
+
 @end
 
 NS_ASSUME_NONNULL_END

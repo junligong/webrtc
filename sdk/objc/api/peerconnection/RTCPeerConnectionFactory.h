@@ -92,6 +92,8 @@ RTC_OBJC_EXPORT
  */
 - (RTC_OBJC_TYPE(RTCVideoSource) *)videoSource;
 
+- (RTC_OBJC_TYPE(RTCVideoSource) *)screenShareVideoSource;
+
 /** Initialize an RTCVideoTrack with a source and an id. */
 - (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackWithSource:(RTC_OBJC_TYPE(RTCVideoSource) *)source
                                                trackId:(NSString *)trackId;

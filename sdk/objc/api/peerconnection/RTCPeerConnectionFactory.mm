@@ -396,6 +396,14 @@ private:
 
 - (RTC_OBJC_TYPE(RTCVideoSource) *)videoSource {
   return [[RTC_OBJC_TYPE(RTCVideoSource) alloc] initWithFactory:self
+                                                   isScreenMode:NO
+                                                signalingThread:_signalingThread.get()
+                                                   workerThread:_workerThread.get()];
+}
+
+- (RTC_OBJC_TYPE(RTCVideoSource) *)screenShareVideoSource {
+  return [[RTC_OBJC_TYPE(RTCVideoSource) alloc] initWithFactory:self
+                                                   isScreenMode:YES
                                                 signalingThread:_signalingThread.get()
                                                    workerThread:_workerThread.get()];
 }

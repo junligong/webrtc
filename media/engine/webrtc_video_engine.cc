@@ -490,6 +490,7 @@ WebRtcVideoChannel::WebRtcVideoSendStream::ConfigureVideoEncoderSettings(
   bool denoising;
   bool codec_default_denoising = false;
   if (is_screencast) {
+      RTC_LOG(LS_INFO) << "ConfigureVideoEncoderSettings use screencast:";
     denoising = false;
   } else {
     // Use codec default if video_noise_reduction is unset.
@@ -2433,6 +2434,8 @@ WebRtcVideoChannel::WebRtcVideoSendStream::CreateVideoEncoderConfig(
         1000 * parameters_.options.screencast_min_bitrate_kbps.value_or(0);
     encoder_config.content_type =
         webrtc::VideoEncoderConfig::ContentType::kScreen;
+
+      RTC_LOG(LS_INFO) << "CreateVideoEncoderConfig use screencast:";
   } else {
     encoder_config.min_transmit_bitrate_bps = 0;
     encoder_config.content_type =

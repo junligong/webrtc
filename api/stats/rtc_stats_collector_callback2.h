@@ -135,7 +135,7 @@ struct RTCAudioInBandStats {
   double audio_volume = 0; 
 
    // RTCTrackStats
-  double relativePacketArrivalDelay;
+  double relativePacketArrivalDelay = 0;
 
   // RTCCodecStats
   RTCCodec audio_codec;
@@ -255,6 +255,7 @@ class RTCInBoundStatsCollectorCallBack : public RTCStatsCollectorCallback {
    RTCInBoundStatsCollectorCallBack() = default;
 	 ~RTCInBoundStatsCollectorCallBack() override = default;
 
+   void SetProbatorSsrc(uint32_t probator_ssrc);
    RTCInBandStats GetInBandStats() const;
 
  protected:
@@ -282,7 +283,9 @@ private:
   std::map<std::string, const webrtc::RTCMediaStreamTrackStats*> track_map;
 
   RTCInBandStats stats_;
+  uint32_t probator_ssrc_;
   mutable std::mutex mutex_;
+
 };
 
 RTC_EXPORT rtc::scoped_refptr<webrtc::RTCOutBoundStatsCollectorCallBack>

@@ -7,6 +7,15 @@
 
 namespace webrtc {
 
+template <typename T>
+bool division_operation(double molecular, double denominator, T& result) {
+  if (denominator == 0){
+    return false;
+  }
+  result = molecular / denominator;
+  return true;
+}
+
 RTCOutBandStats RTCOutBoundStatsCollectorCallBack::GetOutBandStats() const {
   std::lock_guard<std::mutex> guard(mutex_);
   return stats_;
@@ -175,9 +184,10 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
     if (stats_.timestamp > 0) {
       auto audio_iter = stats_.audios.find(track_identifier);
       if (audio_iter != stats_.audios.end()) {
-        audio_outband_stats.bitrate_send =
-            (audio_outband_stats.bytes_sent - audio_iter->second.bytes_sent) * 1000.0 /
-            (stats.timestamp - stats_.timestamp);
+
+        division_operation( (audio_outband_stats.bytes_sent - audio_iter->second.bytes_sent) *1000.0,  
+                             stats.timestamp - stats_.timestamp,
+                             audio_outband_stats.bitrate_send );
       }
       // 丢包 = 发包差 * 丢包率
       stats.packets_lost = stats.packets_lost + std::abs(int(audio_outband_stats.packets_sent - audio_iter->second.packets_sent)) *
@@ -250,20 +260,32 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
     if (stats_.timestamp) {
       auto video_iter = stats_.videos.find(track_identifier);
       if (video_iter != stats_.videos.end()) {
-        video_outband_stats.bitrate_send = (video_outband_stats.bytes_sent - video_iter->second.bytes_sent) * 1000.0 / (stats.timestamp - stats_.timestamp);
+        division_operation( (video_outband_stats.bytes_sent - video_iter->second.bytes_sent) *1000.0, 
+                            (stats.timestamp - stats_.timestamp),
+                             video_outband_stats.bitrate_send);
+        
+        division_operation( video_outband_stats.qp_sum - video_iter->second.qp_sum,
+                            video_outband_stats.frames_encoded - video_iter->second.frames_encoded,
+                            video_outband_stats.qp );
 
-        if (video_iter->second.frames_encoded != video_outband_stats.frames_encoded) {
-          video_outband_stats.qp = double(video_outband_stats.qp_sum - video_iter->second.qp_sum) /
-              (video_outband_stats.frames_encoded - video_iter->second.frames_encoded);
-        }
-        video_outband_stats.retransmitted_bitrate =
-            (video_outband_stats.retransmitted_bytes_sent - video_iter->second.retransmitted_bytes_sent) * 1000.0 / (stats.timestamp - stats_.timestamp);
 
-        if (video_outband_stats.packets_sent != video_iter->second.packets_sent) {
-          video_outband_stats.target_delay_ms =
-              (video_outband_stats.total_packet_send_delay - video_iter->second.total_packet_send_delay) * 1000.0 /
-              ( video_outband_stats.packets_sent - video_iter->second.packets_sent);
+        division_operation( (video_outband_stats.retransmitted_bytes_sent - video_iter->second.retransmitted_bytes_sent) * 1000.0, 
+                             stats.timestamp - stats_.timestamp, 
+                             video_outband_stats.retransmitted_bitrate);
+
+        division_operation( (video_outband_stats.total_packet_send_delay - video_iter->second.total_packet_send_delay) * 1000.0, 
+                            video_outband_stats.packets_sent - video_iter->second.packets_sent, 
+                            video_outband_stats.target_delay_ms);
+
+        // 计算发送帧率
+        if (video_outband_stats.frames_per_second == 0) {
+          division_operation( (video_outband_stats.frames_sent - video_iter->second.frames_sent) * 1000000.0,
+                               stats.timestamp - stats_.timestamp,
+                               video_outband_stats.frames_per_second);
+
+          video_outband_stats.frames_per_second = round(video_outband_stats.frames_per_second);
         }
+
         // 丢包 = 发包差 * 丢包率
         stats.packets_lost = stats.packets_lost + std::abs(int(video_outband_stats.packets_sent - video_iter->second.packets_sent)) *
             video_outband_stats.quailty_parameter.fraction_lost;
@@ -280,15 +302,22 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
    }
 
    stats.bitrate_send = 0;
-   if (stats_.bytes_sent > 0 && stats.timestamp != stats_.timestamp) {
+   if (stats_.bytes_sent > 0) {
 
-     stats.bitrate_send = (stats.bytes_sent - stats_.bytes_sent) * 1000.0 /
-                          (stats.timestamp - stats_.timestamp) ;
+     division_operation( (stats.bytes_sent - stats_.bytes_sent) * 1000.0, 
+                         stats.timestamp - stats_.timestamp, 
+                         stats.bitrate_send );
 
-     stats.quailty_parameter.fraction_lost = stats.packets_lost / std::abs(double(stats.packets_sent - stats_.packets_sent));
+     division_operation( stats.packets_lost,
+                         std::abs(double(stats.packets_sent - stats_.packets_sent)), 
+                         stats.quailty_parameter.fraction_lost );
    }
   std::lock_guard<std::mutex> guard(mutex_);
   stats_ = stats;
+}
+
+void RTCInBoundStatsCollectorCallBack::SetProbatorSsrc(uint32_t probator_ssrc) {
+  probator_ssrc_ = probator_ssrc;
 }
 
 RTCInBandStats RTCInBoundStatsCollectorCallBack::GetInBandStats() const {
@@ -408,6 +437,9 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     // 常规参数
     RTCAudioInBandStats audio_stats;
     audio_stats.ssrc = inbound_audio->ssrc.ValueOrDefault(0);
+    if (probator_ssrc_ == audio_stats.ssrc) {
+      continue;
+    }
     audio_stats.packets_received = inbound_audio->packets_received.ValueOrDefault(0);
     audio_stats.fec_packets_received = inbound_audio->fec_packets_received.ValueOrDefault(0);
     audio_stats.fec_packets_discarded = inbound_audio->fec_packets_discarded.ValueOrDefault(0);
@@ -453,31 +485,30 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     auto audio_item = stats_.audios.find(track_identifier);
     if (audio_item != stats_.audios.end()) {
       //已有数据则合并，相邻数据
-      if (audio_item->second.packets_received != audio_stats.packets_received) {
-        //丢包率
-        audio_stats.quailty_parameter.fraction_lost =(audio_stats.packets_lost - audio_item->second.packets_lost) /
-            (double)(audio_stats.packets_received - audio_item->second.packets_received);
-      }
+      division_operation( (audio_stats.packets_lost - audio_item->second.packets_lost), 
+                           audio_stats.packets_received - audio_item->second.packets_received,
+                           audio_stats.quailty_parameter.fraction_lost);
+
       //码率
-      audio_stats.bitrate_recv = (audio_stats.bytes_received - audio_item->second.bytes_received) * 1000/
-          (double)(stats.timestamp - stats_.timestamp);
+      division_operation( (audio_stats.bytes_received - audio_item->second.bytes_received) * 1000,
+                           stats.timestamp - stats_.
+                           timestamp, audio_stats.bitrate_recv);
+
       // 音频卡顿----Todo
       audio_stats.audio_caton_ms = audio_item->second.audio_caton_ms;
-      if (audio_stats.total_samples_received != audio_item->second.total_samples_received){
-        audio_stats.audio_caton_ms =
-            (audio_stats.total_samples_duration - audio_item->second.total_samples_duration) *
-            1000.0 / (double)(audio_stats.total_samples_received - audio_item->second.total_samples_received);
-      }
-      if (audio_stats.packets_received != audio_item->second.packets_received) {
-        audio_stats.audio_delay = (audio_stats.relativePacketArrivalDelay - audio_item->second.relativePacketArrivalDelay) *
-            1000.0 / (audio_stats.packets_received - audio_item->second.packets_received);
-      }
+
+      division_operation( (audio_stats.total_samples_duration - audio_item->second.total_samples_duration) * 1000.0,
+                           audio_stats.total_samples_received - audio_item->second.total_samples_received,
+                           audio_stats.audio_caton_ms);
+
+      division_operation( (audio_stats.relativePacketArrivalDelay - audio_item->second.relativePacketArrivalDelay) * 1000.0,
+                           audio_stats.packets_received - audio_item->second.packets_received,
+                           audio_stats.audio_delay );
     }
     // 统计整体丢包数
     stats.packets_lost += inbound_audio->packets_lost.ValueOrDefault(0);
     stats.packets_received += inbound_audio->packets_received.ValueOrDefault(0);
     stats.audios.insert(std::make_pair(track_identifier, audio_stats));
-
   }
 
   // 下行视频
@@ -497,6 +528,9 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     // 常规参数
     RTCVideoInBandStats video_stats;
     video_stats.ssrc = inbound_video->ssrc.ValueOrDefault(0);
+    if (probator_ssrc_ == video_stats.ssrc) {
+      continue;
+    }
     video_stats.packets_received = inbound_video->packets_received.ValueOrDefault(0);
     video_stats.frames_received = inbound_video->frames_received.ValueOrDefault(0);
     video_stats.fir_count = inbound_video->fir_count.ValueOrDefault(0);
@@ -549,17 +583,21 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     // 计算
     auto video_item = stats_.videos.find(track_identifier);
     if (video_item != stats_.videos.end()) {
-      video_stats.bitrate_recv = (video_stats.bytes_received - video_item->second.bytes_received) * 1000 / (double)(stats.timestamp - stats_.timestamp);
 
-      if (video_item->second.frames_decoded != video_stats.frames_decoded) {
-        video_stats.qp = double(video_stats.qp_sum - video_item->second.qp_sum) / (video_stats.frames_decoded - video_item->second.frames_decoded);
-      }
+      division_operation( (video_stats.bytes_received - video_item->second.bytes_received) * 1000,
+                           stats.timestamp - stats_.timestamp, 
+                           video_stats.bitrate_recv);
+
+
+      division_operation( video_stats.qp_sum - video_item->second.qp_sum, 
+                          video_stats.frames_decoded - video_item->second.frames_decoded,
+                          video_stats.qp);
+
       video_stats.video_caton_ms = video_stats.total_caton_delay_ms - video_item->second.total_caton_delay_ms;
       // 计算丢包
-      if (video_item->second.packets_received != video_stats.packets_received) {
-        video_stats.quailty_parameter.fraction_lost = (video_stats.packets_lost - video_item->second.packets_lost) /
-            (double)(video_stats.packets_received - video_item->second.packets_received);
-      }
+      division_operation( (video_stats.packets_lost - video_item->second.packets_lost),
+                           video_stats.packets_received - video_item->second.packets_received,
+                           video_stats.quailty_parameter.fraction_lost);
     }
     // 统计整体丢包数
     stats.packets_received = stats.packets_lost + inbound_video->packets_received.ValueOrDefault(0);
@@ -572,11 +610,15 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
   }
 
   stats.bitrate_recv = 0;
-  if (stats_.bytes_recv > 0 && stats.timestamp != stats_.timestamp) {
-    stats.bitrate_recv = (stats.bytes_recv - stats_.bytes_recv) * 1000.0 /
-                         (stats.timestamp - stats_.timestamp);
+  if (stats_.bytes_recv > 0) {
 
-    stats.quailty_parameter.fraction_lost = double(stats.packets_lost - stats_.packets_lost) / double(stats.packets_received - stats_.packets_received);
+    division_operation( (stats.bytes_recv - stats_.bytes_recv) * 1000.0, 
+                         stats.timestamp - stats_.
+                         timestamp, stats.bitrate_recv);
+
+    division_operation( stats.packets_lost - stats_.packets_lost, 
+                        stats.packets_received - stats_.packets_received,
+                        stats.quailty_parameter.fraction_lost);
   }
   std::lock_guard<std::mutex> guard(mutex_);
   stats_ = stats;

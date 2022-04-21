@@ -235,8 +235,11 @@ int32_t AudioDeviceIOS::StartPlayout() {
     fine_audio_buffer_->ResetPlayout();
   }
   if (!recording_ && audio_unit_->GetState() == VoiceProcessingAudioUnit::kInitialized) {
-    if (!audio_unit_->Start()) {
-      RTCLogError(@"StartPlayout failed to start audio unit.");
+    OSStatus result = audio_unit_->Start();
+    if (result != noErr) {
+      RTC_OBJC_TYPE(RTCAudioSession)* session = [RTC_OBJC_TYPE(RTCAudioSession) sharedInstance];
+      [session notifyAudioUnitStartFailedWithError:result];
+      RTCLogError(@"StartPlayout failed to start audio unit, reason %d", result);
       return -1;
     }
     RTC_LOG(LS_INFO) << "Voice-Processing I/O audio unit is now started";
@@ -288,8 +291,11 @@ int32_t AudioDeviceIOS::StartRecording() {
     fine_audio_buffer_->ResetRecord();
   }
   if (!playing_ && audio_unit_->GetState() == VoiceProcessingAudioUnit::kInitialized) {
-    if (!audio_unit_->Start()) {
-      RTCLogError(@"StartRecording failed to start audio unit.");
+    OSStatus result = audio_unit_->Start();
+    if (result != noErr) {
+      RTC_OBJC_TYPE(RTCAudioSession)* session = [RTC_OBJC_TYPE(RTCAudioSession) sharedInstance];
+      [session notifyAudioUnitStartFailedWithError:result];
+      RTCLogError(@"StartRecording failed to start audio unit, reason %d", result);
       return -1;
     }
     RTC_LOG(LS_INFO) << "Voice-Processing I/O audio unit is now started";
@@ -388,7 +394,7 @@ OSStatus AudioDeviceIOS::OnDeliverRecordedData(AudioUnitRenderActionFlags* flags
   // Allocate AudioBuffers to be used as storage for the received audio.
   // The AudioBufferList structure works as a placeholder for the
   // AudioBuffer structure, which holds a pointer to the actual data buffer
-  // in |record_audio_buffer_|. Recorded audio will be rendered into this memory
+  // in `record_audio_buffer_`. Recorded audio will be rendered into this memory
   // at each input callback when calling AudioUnitRender().
   AudioBufferList audio_buffer_list;
   audio_buffer_list.mNumberBuffers = 1;
@@ -399,7 +405,7 @@ OSStatus AudioDeviceIOS::OnDeliverRecordedData(AudioUnitRenderActionFlags* flags
   audio_buffer->mData = reinterpret_cast<int8_t*>(record_audio_buffer_.data());
 
   // Obtain the recorded audio samples by initiating a rendering cycle.
-  // Since it happens on the input bus, the |io_data| parameter is a reference
+  // Since it happens on the input bus, the `io_data` parameter is a reference
   // to the preallocated audio buffer list that the audio unit renders into.
   // We can make the audio unit provide a buffer instead in io_data, but we
   // currently just use our own.
@@ -469,7 +475,7 @@ OSStatus AudioDeviceIOS::OnGetPlayoutData(AudioUnitRenderActionFlags* flags,
 
   // Read decoded 16-bit PCM samples from WebRTC (using a size that matches
   // the native I/O audio unit) and copy the result to the audio buffer in the
-  // |io_data| destination.
+  // `io_data` destination.
   fine_audio_buffer_->GetPlayoutData(
       rtc::ArrayView<int16_t>(static_cast<int16_t*>(audio_buffer->mData), num_frames),
       kFixedPlayoutDelayEstimate);
@@ -622,9 +628,16 @@ void AudioDeviceIOS::HandleSampleRateChange(float sample_rate) {
   }
 
   // Restart the audio unit if it was already running.
-  if (restart_audio_unit && !audio_unit_->Start()) {
-    RTCLogError(@"Failed to start audio unit with sample rate: %f", session_sample_rate);
-    return;
+  if (restart_audio_unit) {
+    OSStatus result = audio_unit_->Start();
+    if (result != noErr) {
+      RTC_OBJC_TYPE(RTCAudioSession)* session = [RTC_OBJC_TYPE(RTCAudioSession) sharedInstance];
+      [session notifyAudioUnitStartFailedWithError:result];
+      RTCLogError(@"Failed to start audio unit with sample rate: %f, reason %d",
+                  session_sample_rate,
+                  result);
+      return;
+    }
   }
   RTCLog(@"Successfully handled sample rate change.");
 }
@@ -803,8 +816,10 @@ void AudioDeviceIOS::UpdateAudioUnit(bool can_play_or_record) {
     // Log session settings before trying to start audio streaming.
     RTC_OBJC_TYPE(RTCAudioSession)* session = [RTC_OBJC_TYPE(RTCAudioSession) sharedInstance];
     RTCLog(@"%@", session);
-    if (!audio_unit_->Start()) {
-      RTCLogError(@"Failed to start audio unit.");
+    OSStatus result = audio_unit_->Start();
+    if (result != noErr) {
+      [session notifyAudioUnitStartFailedWithError:result];
+      RTCLogError(@"Failed to start audio unit, reason %d", result);
       return;
     }
   }

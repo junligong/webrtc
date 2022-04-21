@@ -145,6 +145,8 @@ class VideoEncoderSoftwareFallbackWrapperTestBase : public ::testing::Test {
       info.scaling_settings = ScalingSettings(kLowThreshold, kHighThreshold);
       info.supports_native_handle = supports_native_handle_;
       info.implementation_name = implementation_name_;
+      if (is_qp_trusted_)
+        info.is_qp_trusted = is_qp_trusted_;
       return info;
     }
 
@@ -156,6 +158,7 @@ class VideoEncoderSoftwareFallbackWrapperTestBase : public ::testing::Test {
     int release_count_ = 0;
     mutable int supports_native_handle_count_ = 0;
     bool supports_native_handle_ = false;
+    bool is_qp_trusted_ = false;
     std::string implementation_name_ = "fake-encoder";
     absl::optional<VideoFrame> last_video_frame_;
   };
@@ -172,7 +175,7 @@ class VideoEncoderSoftwareFallbackWrapperTestBase : public ::testing::Test {
 
   test::ScopedFieldTrials override_field_trials_;
   FakeEncodedImageCallback callback_;
-  // |fake_encoder_| is owned and released by |fallback_wrapper_|.
+  // `fake_encoder_` is owned and released by `fallback_wrapper_`.
   CountingFakeEncoder* fake_encoder_;
   CountingFakeEncoder* fake_sw_encoder_;
   bool wrapper_initialized_;
@@ -416,6 +419,16 @@ TEST_F(VideoEncoderSoftwareFallbackWrapperTest, ReportsImplementationName) {
   fallback_wrapper_->InitEncode(&codec_, kSettings);
   EncodeFrame();
   CheckLastEncoderName("fake-encoder");
+}
+
+TEST_F(VideoEncoderSoftwareFallbackWrapperTest,
+       IsQpTrustedNotForwardedDuringFallback) {
+  // Fake encoder signals trusted QP, default (libvpx) does not.
+  fake_encoder_->is_qp_trusted_ = true;
+  EXPECT_TRUE(fake_encoder_->GetEncoderInfo().is_qp_trusted.value_or(false));
+  UtilizeFallbackEncoder();
+  EXPECT_FALSE(fallback_wrapper_->GetEncoderInfo().is_qp_trusted.has_value());
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, fallback_wrapper_->Release());
 }
 
 TEST_F(VideoEncoderSoftwareFallbackWrapperTest,
@@ -969,7 +982,7 @@ TEST_F(PreferTemporalLayersFallbackTest, PrimesEncoderOnSwitch) {
   wrapper_->RegisterEncodeCompleteCallback(&callback1);
 
   EXPECT_CALL(*hw_, SetFecControllerOverride(&fec_controller_override1));
-  EXPECT_CALL(*sw_, SetFecControllerOverride).Times(0);
+  EXPECT_CALL(*sw_, SetFecControllerOverride).Times(1);
   wrapper_->SetFecControllerOverride(&fec_controller_override1);
 
   EXPECT_CALL(*hw_, SetRates(rate_params1));
@@ -994,7 +1007,7 @@ TEST_F(PreferTemporalLayersFallbackTest, PrimesEncoderOnSwitch) {
   EXPECT_CALL(*sw_, RegisterEncodeCompleteCallback(&callback1));
   EXPECT_CALL(*hw_, RegisterEncodeCompleteCallback).Times(0);
 
-  EXPECT_CALL(*sw_, SetFecControllerOverride(&fec_controller_override1));
+  EXPECT_CALL(*sw_, SetFecControllerOverride).Times(0);
   EXPECT_CALL(*hw_, SetFecControllerOverride).Times(0);
 
   // Rate control parameters are cleared on InitEncode.
@@ -1028,7 +1041,7 @@ TEST_F(PreferTemporalLayersFallbackTest, PrimesEncoderOnSwitch) {
   wrapper_->RegisterEncodeCompleteCallback(&callback2);
 
   EXPECT_CALL(*sw_, SetFecControllerOverride(&fec_controller_override2));
-  EXPECT_CALL(*hw_, SetFecControllerOverride).Times(0);
+  EXPECT_CALL(*hw_, SetFecControllerOverride).Times(1);
   wrapper_->SetFecControllerOverride(&fec_controller_override2);
 
   EXPECT_CALL(*sw_, SetRates(rate_params2));
@@ -1053,7 +1066,7 @@ TEST_F(PreferTemporalLayersFallbackTest, PrimesEncoderOnSwitch) {
   EXPECT_CALL(*hw_, RegisterEncodeCompleteCallback(&callback2));
   EXPECT_CALL(*sw_, RegisterEncodeCompleteCallback).Times(0);
 
-  EXPECT_CALL(*hw_, SetFecControllerOverride(&fec_controller_override2));
+  EXPECT_CALL(*hw_, SetFecControllerOverride).Times(0);
   EXPECT_CALL(*sw_, SetFecControllerOverride).Times(0);
 
   // Rate control parameters are cleared on InitEncode.

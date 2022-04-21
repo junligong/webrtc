@@ -29,6 +29,7 @@
 #include "modules/pacing/pacing_controller.h"
 #include "modules/pacing/rtp_packet_pacer.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
+#include "rtc_base/numerics/exp_filter.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/task_queue.h"
 #include "rtc_base/thread_annotations.h"
@@ -39,18 +40,19 @@ class RtcEventLog;
 
 class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
  public:
-  // The |hold_back_window| parameter sets a lower bound on time to sleep if
+  // The `hold_back_window` parameter sets a lower bound on time to sleep if
   // there is currently a pacer queue and packets can't immediately be
   // processed. Increasing this reduces thread wakeups at the expense of higher
   // latency.
-  // TODO(bugs.webrtc.org/10809): Remove default value for hold_back_window.
+  // TODO(bugs.webrtc.org/10809): Remove default values.
   TaskQueuePacedSender(
       Clock* clock,
       PacingController::PacketSender* packet_sender,
       RtcEventLog* event_log,
       const WebRtcKeyValueConfig* field_trials,
       TaskQueueFactory* task_queue_factory,
-      TimeDelta hold_back_window = PacingController::kMinSleepTime);
+      TimeDelta max_hold_back_window = PacingController::kMinSleepTime,
+      int max_hold_back_window_in_packets = -1);
 
   ~TaskQueuePacedSender() override;
 
@@ -132,11 +134,13 @@ class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
   Stats GetStats() const;
 
   Clock* const clock_;
-  const TimeDelta hold_back_window_;
+  const TimeDelta max_hold_back_window_;
+  const int max_hold_back_window_in_packets_;
+
   PacingController pacing_controller_ RTC_GUARDED_BY(task_queue_);
 
   // We want only one (valid) delayed process task in flight at a time.
-  // If the value of |next_process_time_| is finite, it is an id for a
+  // If the value of `next_process_time_` is finite, it is an id for a
   // delayed task that will call MaybeProcessPackets() with that time
   // as parameter.
   // Timestamp::MinusInfinity() indicates no valid pending task.
@@ -144,7 +148,7 @@ class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
 
   // Since we don't want to support synchronous calls that wait for a
   // task execution, we poll the stats at some interval and update
-  // |current_stats_|, which can in turn be polled at any time.
+  // `current_stats_`, which can in turn be polled at any time.
 
   // True iff there is delayed task in flight that that will call
   // UdpateStats().
@@ -160,6 +164,9 @@ class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
   // posting any more delayed tasks as that can cause the task queue to
   // never drain.
   bool is_shutdown_ RTC_GUARDED_BY(task_queue_);
+
+  // Filtered size of enqueued packets, in bytes.
+  rtc::ExpFilter packet_size_ RTC_GUARDED_BY(task_queue_);
 
   mutable Mutex stats_mutex_;
   Stats current_stats_ RTC_GUARDED_BY(stats_mutex_);

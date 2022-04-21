@@ -925,13 +925,13 @@ void VideoQualityTest::SetupVideo(Transport* send_transport,
     }
 
     CreateMatchingFecConfig(recv_transport, *GetVideoSendConfig());
-    GetFlexFecConfig()->transport_cc = params_.call.send_side_bwe;
+    GetFlexFecConfig()->rtp.transport_cc = params_.call.send_side_bwe;
     if (params_.call.send_side_bwe) {
-      GetFlexFecConfig()->rtp_header_extensions.push_back(
+      GetFlexFecConfig()->rtp.extensions.push_back(
           RtpExtension(RtpExtension::kTransportSequenceNumberUri,
                        kTransportSequenceNumberExtensionId));
     } else {
-      GetFlexFecConfig()->rtp_header_extensions.push_back(
+      GetFlexFecConfig()->rtp.extensions.push_back(
           RtpExtension(RtpExtension::kAbsSendTimeUri, kAbsSendTimeExtensionId));
     }
   }
@@ -1342,7 +1342,7 @@ void VideoQualityTest::RunWithAnalyzer(const Params& params) {
 
 rtc::scoped_refptr<AudioDeviceModule> VideoQualityTest::CreateAudioDevice() {
 #ifdef WEBRTC_WIN
-  RTC_LOG(INFO) << "Using latest version of ADM on Windows";
+  RTC_LOG(LS_INFO) << "Using latest version of ADM on Windows";
   // We must initialize the COM library on a thread before we calling any of
   // the library functions. All COM functions in the ADM will return
   // CO_E_NOTINITIALIZED otherwise. The legacy ADM for Windows used internal
@@ -1433,7 +1433,7 @@ void VideoQualityTest::SetupAudio(Transport* transport) {
 }
 
 void VideoQualityTest::RunWithRenderers(const Params& params) {
-  RTC_LOG(INFO) << __FUNCTION__;
+  RTC_LOG(LS_INFO) << __FUNCTION__;
   num_video_streams_ = params.call.dual_video ? 2 : 1;
   std::unique_ptr<test::LayerFilteringTransport> send_transport;
   std::unique_ptr<test::DirectTransport> recv_transport;

@@ -59,7 +59,6 @@ void StunRequestManager::Send(StunRequest* request) {
 void StunRequestManager::SendDelayed(StunRequest* request, int delay) {
   request->set_manager(this);
   RTC_DCHECK(requests_.find(request->id()) == requests_.end());
-  request->set_origin(origin_);
   request->Construct();
   requests_[request->id()] = request;
   if (delay > 0) {
@@ -106,7 +105,7 @@ void StunRequestManager::Clear() {
 
   for (uint32_t i = 0; i < requests.size(); ++i) {
     // StunRequest destructor calls Remove() which deletes requests
-    // from |requests_|.
+    // from `requests_`.
     delete requests[i];
   }
 }
@@ -213,10 +212,6 @@ StunRequest::~StunRequest() {
 
 void StunRequest::Construct() {
   if (msg_->type() == 0) {
-    if (!origin_.empty()) {
-      msg_->AddAttribute(
-          std::make_unique<StunByteStringAttribute>(STUN_ATTR_ORIGIN, origin_));
-    }
     Prepare(msg_);
     RTC_DCHECK(msg_->type() != 0);
   }

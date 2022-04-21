@@ -10,7 +10,7 @@
 
 #import "RTCVideoSource+Private.h"
 
-#include "api/video_track_source_proxy.h"
+#include "pc/video_track_source_proxy.h"
 #include "rtc_base/checks.h"
 #include "sdk/objc/native/src/objc_video_track_source.h"
 
@@ -52,9 +52,17 @@ static webrtc::ObjCVideoTrackSource *getObjCVideoSource(
                    isScreenMode:(BOOL)isScreenMode
                 signalingThread:(rtc::Thread *)signalingThread
                    workerThread:(rtc::Thread *)workerThread {
-  rtc::scoped_refptr<webrtc::ObjCVideoTrackSource> objCVideoTrackSource(
-      new rtc::RefCountedObject<webrtc::ObjCVideoTrackSource>());
-    (objCVideoTrackSource.get())->isScreenMode = isScreenMode ? true : false;
+  return [self initWithFactory:factory
+               signalingThread:signalingThread
+                  workerThread:workerThread
+                  isScreenCast:NO];
+}
+
+- (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+                signalingThread:(rtc::Thread *)signalingThread
+                   workerThread:(rtc::Thread *)workerThread
+                   isScreenCast:(BOOL)isScreenCast {
+  rtc::scoped_refptr<webrtc::ObjCVideoTrackSource> objCVideoTrackSource(new rtc::RefCountedObject<webrtc::ObjCVideoTrackSource>(isScreenCast));
 
   return [self initWithFactory:factory
              nativeVideoSource:webrtc::VideoTrackSourceProxy::Create(

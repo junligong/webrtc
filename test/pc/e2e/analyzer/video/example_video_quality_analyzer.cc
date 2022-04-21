@@ -14,7 +14,6 @@
 #include "rtc_base/logging.h"
 
 namespace webrtc {
-namespace webrtc_pc_e2e {
 
 ExampleVideoQualityAnalyzer::ExampleVideoQualityAnalyzer() = default;
 ExampleVideoQualityAnalyzer::~ExampleVideoQualityAnalyzer() = default;
@@ -67,7 +66,7 @@ void ExampleVideoQualityAnalyzer::OnFrameEncoded(
 void ExampleVideoQualityAnalyzer::OnFrameDropped(
     absl::string_view peer_name,
     webrtc::EncodedImageCallback::DropReason reason) {
-  RTC_LOG(INFO) << "Frame dropped by encoder";
+  RTC_LOG(LS_INFO) << "Frame dropped by encoder";
   MutexLock lock(&lock_);
   ++frames_dropped_;
 }
@@ -113,8 +112,8 @@ void ExampleVideoQualityAnalyzer::OnDecoderError(absl::string_view peer_name,
 
 void ExampleVideoQualityAnalyzer::Stop() {
   MutexLock lock(&lock_);
-  RTC_LOG(INFO) << "There are " << frames_in_flight_.size()
-                << " frames in flight, assuming all of them are dropped";
+  RTC_LOG(LS_INFO) << "There are " << frames_in_flight_.size()
+                   << " frames in flight, assuming all of them are dropped";
   frames_dropped_ += frames_in_flight_.size();
 }
 
@@ -161,5 +160,4 @@ uint64_t ExampleVideoQualityAnalyzer::frames_dropped() const {
   return frames_dropped_;
 }
 
-}  // namespace webrtc_pc_e2e
 }  // namespace webrtc

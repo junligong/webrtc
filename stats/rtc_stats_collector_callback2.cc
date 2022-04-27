@@ -7,14 +7,34 @@
 
 namespace webrtc {
 
-template <typename T>
-bool division_operation(double molecular, double denominator, T& result) {
-  if (denominator == 0){
+ template <typename T>
+ bool division_operation( double molecular,
+                          double denominator,
+                          T& result) {
+  if (denominator == 0) {
     return false;
   }
-  result = molecular / denominator;
+  result = std::abs(molecular / denominator);
   return true;
-}
+ }
+
+ template <typename T>
+ int division_operation(double molecular,
+                        double denominator,
+                        T& result,
+                        double range) {
+   if (denominator == 0) {
+     return -1;
+   }
+   T _result = std::abs(molecular / denominator);
+
+   if (_result > range) {
+     return -2;
+   } else {
+     result = _result;
+   }
+   return 0;
+ }
 
 RTCOutBandStats RTCOutBoundStatsCollectorCallBack::GetOutBandStats() const {
   std::lock_guard<std::mutex> guard(mutex_);
@@ -190,7 +210,7 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
                              audio_outband_stats.bitrate_send );
       }
       // 丢包 = 发包差 * 丢包率
-      stats.packets_lost = stats.packets_lost + std::abs(int(audio_outband_stats.packets_sent - audio_iter->second.packets_sent)) *
+      stats.packets_lost += std::abs(int(audio_outband_stats.packets_sent - audio_iter->second.packets_sent)) *
                             audio_outband_stats.quailty_parameter.fraction_lost;
     }
     stats.packets_sent += audio_outband_stats.packets_sent;
@@ -308,9 +328,13 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
                          stats.timestamp - stats_.timestamp, 
                          stats.bitrate_send );
 
-     division_operation( stats.packets_lost,
-                         std::abs(double(stats.packets_sent - stats_.packets_sent)), 
-                         stats.quailty_parameter.fraction_lost );
+     int flag = division_operation( stats.packets_lost,
+                                    std::abs(double(stats.packets_sent - stats_.packets_sent)),
+                                    stats.quailty_parameter.fraction_lost,
+                                    1);
+     if (flag < 0) {
+       RTC_LOG(LERROR) << "calc outboundstats fraction_lost error, error code:" << flag;
+     }
    }
   std::lock_guard<std::mutex> guard(mutex_);
   stats_ = stats;
@@ -485,9 +509,16 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     auto audio_item = stats_.audios.find(track_identifier);
     if (audio_item != stats_.audios.end()) {
       //已有数据则合并，相邻数据
-      division_operation( (audio_stats.packets_lost - audio_item->second.packets_lost), 
-                           audio_stats.packets_received - audio_item->second.packets_received,
-                           audio_stats.quailty_parameter.fraction_lost);
+      int flag = division_operation( (audio_stats.packets_lost - audio_item->second.packets_lost),
+                                      audio_stats.packets_received - audio_item->second.packets_received,
+                                      audio_stats.quailty_parameter.fraction_lost,
+                                      1);
+      if (flag < 0) {
+        RTC_LOG(LERROR) << "calc audioinband ssrc:" 
+                        << audio_stats.ssrc
+                        << " fraction_lost error, error code:" 
+                        << flag;
+      }
 
       //码率
       division_operation( (audio_stats.bytes_received - audio_item->second.bytes_received) * 1000,
@@ -547,6 +578,8 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     video_stats.bytes_received = inbound_video->bytes_received.ValueOrDefault(0);
 
     video_stats.jitter = inbound_video->jitter.ValueOrDefault(0);
+    video_stats.jitter_buffer_delay =
+        inbound_video->jitter_buffer_delay.ValueOrDefault(0);
     video_stats.packets_lost = inbound_video->packets_lost.ValueOrDefault(0);
     video_stats.frames_per_second = inbound_video->frames_per_second.ValueOrDefault(0);
     video_stats.total_decode_time = inbound_video->total_decode_time.ValueOrDefault(0);
@@ -595,13 +628,21 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
 
       video_stats.video_caton_ms = video_stats.total_caton_delay_ms - video_item->second.total_caton_delay_ms;
       // 计算丢包
-      division_operation( (video_stats.packets_lost - video_item->second.packets_lost),
-                           video_stats.packets_received - video_item->second.packets_received,
-                           video_stats.quailty_parameter.fraction_lost);
+      int flag = division_operation( (video_stats.packets_lost - video_item->second.packets_lost),
+                                      video_stats.packets_received - video_item->second.packets_received,
+                                      video_stats.quailty_parameter.fraction_lost,
+                                      1);
+      if (flag < 0) {
+        RTC_LOG(LERROR) << "calc videoinband ssrc:" 
+                        << video_stats.ssrc
+                        << " fraction_lost error, error code:" 
+                        << flag;
+      }
+      
     }
     // 统计整体丢包数
-    stats.packets_received = stats.packets_lost + inbound_video->packets_received.ValueOrDefault(0);
-    stats.packets_lost = stats.packets_lost + inbound_video->packets_lost.ValueOrDefault(0);
+    stats.packets_received += inbound_video->packets_received.ValueOrDefault(0);
+    stats.packets_lost += inbound_video->packets_lost.ValueOrDefault(0);
     stats.videos.insert(std::make_pair(track_identifier, video_stats));
   }
 
@@ -616,9 +657,13 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
                          stats.timestamp - stats_.
                          timestamp, stats.bitrate_recv);
 
-    division_operation( stats.packets_lost - stats_.packets_lost, 
-                        stats.packets_received - stats_.packets_received,
-                        stats.quailty_parameter.fraction_lost);
+    int flag = division_operation( stats.packets_lost - stats_.packets_lost, 
+                                   stats.packets_received - stats_.packets_received,
+                                   stats.quailty_parameter.fraction_lost,
+                                   1);
+    if (flag < 0) {
+      RTC_LOG(LERROR) << "calc inband fraction_lost error, error code:" << flag;
+    }
   }
   std::lock_guard<std::mutex> guard(mutex_);
   stats_ = stats;

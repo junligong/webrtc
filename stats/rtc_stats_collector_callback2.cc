@@ -7,6 +7,12 @@
 
 namespace webrtc {
 
+#define RTT_MIN 0.0
+#define RTT_MAX 1000000.0
+
+#define JITTER_BUFFER_DELAY_MIN 0.0
+#define JITTER_BUFFER_DELAY_MAX 1000000.0
+
  template <typename T>
  bool division_operation( double molecular,
                           double denominator,
@@ -34,6 +40,14 @@ namespace webrtc {
      result = _result;
    }
    return 0;
+ }
+
+ template <typename T>
+ T range_operation(const T& value, const T& min, const T& max) {
+   if (value < min && value > max) {
+     return 0;
+   }
+   return value;
  }
 
 RTCOutBandStats RTCOutBoundStatsCollectorCallBack::GetOutBandStats() const {
@@ -140,7 +154,7 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
   // 读取带宽、rtt
   if (!candidate_pair_map.empty() && candidate_pair_map.begin()->second) {
     stats.available_outgoing_bitrate = candidate_pair_map.begin()->second->available_outgoing_bitrate.ValueOrDefault(0) / 1000.0;
-    stats.quailty_parameter.round_trip_time = candidate_pair_map.begin()->second->current_round_trip_time.ValueOrDefault(0);
+    stats.quailty_parameter.round_trip_time = range_operation(candidate_pair_map.begin()->second->current_round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
   }
   // 遍历上行音频流
   for (auto audio_outbound : outbound_audio_map) {
@@ -195,15 +209,15 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
       if (remote_iter != remote_inbound_audio_map.end()) {
         audio_outband_stats.quailty_parameter.fraction_lost =
             remote_iter->second->fraction_lost.ValueOrDefault(0);
-        audio_outband_stats.quailty_parameter.round_trip_time =
-            remote_iter->second->round_trip_time.ValueOrDefault(0);
+        audio_outband_stats.quailty_parameter.round_trip_time = range_operation(remote_iter->second->round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
       }
     }
 
     // 计算发送码率
     if (stats_.timestamp > 0) {
       auto audio_iter = stats_.audios.find(track_identifier);
-      if (audio_iter != stats_.audios.end()) {
+      if (audio_iter != stats_.audios.end() &&
+          audio_outband_stats.ssrc == audio_iter->second.ssrc) {
 
         division_operation( (audio_outband_stats.bytes_sent - audio_iter->second.bytes_sent) *1000.0,  
                              stats.timestamp - stats_.timestamp,
@@ -272,14 +286,15 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
       auto romote_iter = remote_inbound_video_map.find(*video_outbound->remote_id);
       if (romote_iter != remote_inbound_video_map.end()) {
         video_outband_stats.quailty_parameter.fraction_lost = romote_iter->second->fraction_lost.ValueOrDefault(0);
-        video_outband_stats.quailty_parameter.round_trip_time = romote_iter->second->round_trip_time.ValueOrDefault(0);
+        video_outband_stats.quailty_parameter.round_trip_time = range_operation(romote_iter->second->round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
       }
     }
     //  计算发送码率、发包延迟、qp值
     video_outband_stats.target_delay_ms = 0;
     if (stats_.timestamp) {
       auto video_iter = stats_.videos.find(track_identifier);
-      if (video_iter != stats_.videos.end()) {
+      if (video_iter != stats_.videos.end() &&
+          video_outband_stats.ssrc == video_iter->second.ssrc) {
         division_operation( (video_outband_stats.bytes_sent - video_iter->second.bytes_sent) *1000.0, 
                             (stats.timestamp - stats_.timestamp),
                              video_outband_stats.bitrate_send);
@@ -325,16 +340,13 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
    if (stats_.bytes_sent > 0) {
 
      division_operation( (stats.bytes_sent - stats_.bytes_sent) * 1000.0, 
-                         stats.timestamp - stats_.timestamp, 
-                         stats.bitrate_send );
+                          stats.timestamp - stats_.timestamp, 
+                          stats.bitrate_send );
 
-     int flag = division_operation( stats.packets_lost,
-                                    std::abs(double(stats.packets_sent - stats_.packets_sent)),
-                                    stats.quailty_parameter.fraction_lost,
-                                    1);
-     if (flag < 0) {
-       RTC_LOG(LERROR) << "calc outboundstats fraction_lost error, error code:" << flag;
-     }
+     division_operation( stats.packets_lost,
+                         std::abs(double(stats.packets_sent - stats_.packets_sent)),
+                         stats.quailty_parameter.fraction_lost,
+                         1);
    }
   std::lock_guard<std::mutex> guard(mutex_);
   stats_ = stats;
@@ -440,7 +452,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
   RTCInBandStats stats;
   // 读取rtt
   if (!candidate_pair_map.empty() && candidate_pair_map.begin()->second) {
-    stats.quailty_parameter.round_trip_time = candidate_pair_map.begin()->second->current_round_trip_time.ValueOrDefault(0);
+    stats.quailty_parameter.round_trip_time = range_operation(candidate_pair_map.begin()->second->current_round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
   }
 
   // 下行音频
@@ -477,7 +489,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     audio_stats.removed_samples_for_acceleration = inbound_audio->removed_samples_for_acceleration.ValueOrDefault(0);
 
     audio_stats.jitter = inbound_audio->jitter.ValueOrDefault(0);
-    audio_stats.jitter_buffer_delay = inbound_audio->jitter_buffer_delay.ValueOrDefault(0);
+    audio_stats.jitter_buffer_delay = range_operation(inbound_audio->jitter_buffer_delay.ValueOrDefault(0), JITTER_BUFFER_DELAY_MIN, JITTER_BUFFER_DELAY_MAX);
     audio_stats.packets_lost = inbound_audio->packets_lost.ValueOrDefault(0);
     audio_stats.delay_estimate_ms = inbound_audio->target_delay_ms.ValueOrDefault(0);
 
@@ -507,18 +519,12 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     }
 
     auto audio_item = stats_.audios.find(track_identifier);
-    if (audio_item != stats_.audios.end()) {
+    if (audio_item != stats_.audios.end() && audio_stats.ssrc == audio_item->second.ssrc) {
       //已有数据则合并，相邻数据
-      int flag = division_operation( (audio_stats.packets_lost - audio_item->second.packets_lost),
+      division_operation( (audio_stats.packets_lost - audio_item->second.packets_lost),
                                       audio_stats.packets_received - audio_item->second.packets_received,
                                       audio_stats.quailty_parameter.fraction_lost,
                                       1);
-      if (flag < 0) {
-        RTC_LOG(LERROR) << "calc audioinband ssrc:" 
-                        << audio_stats.ssrc
-                        << " fraction_lost error, error code:" 
-                        << flag;
-      }
 
       //码率
       division_operation( (audio_stats.bytes_received - audio_item->second.bytes_received) * 1000,
@@ -578,8 +584,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     video_stats.bytes_received = inbound_video->bytes_received.ValueOrDefault(0);
 
     video_stats.jitter = inbound_video->jitter.ValueOrDefault(0);
-    video_stats.jitter_buffer_delay =
-        inbound_video->jitter_buffer_delay.ValueOrDefault(0);
+    video_stats.jitter_buffer_delay = range_operation(inbound_video->jitter_buffer_delay.ValueOrDefault(0), JITTER_BUFFER_DELAY_MIN, JITTER_BUFFER_DELAY_MAX);
     video_stats.packets_lost = inbound_video->packets_lost.ValueOrDefault(0);
     video_stats.frames_per_second = inbound_video->frames_per_second.ValueOrDefault(0);
     video_stats.total_decode_time = inbound_video->total_decode_time.ValueOrDefault(0);
@@ -615,7 +620,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     }
     // 计算
     auto video_item = stats_.videos.find(track_identifier);
-    if (video_item != stats_.videos.end()) {
+    if (video_item != stats_.videos.end() && video_stats.ssrc == video_item->second.ssrc) {
 
       division_operation( (video_stats.bytes_received - video_item->second.bytes_received) * 1000,
                            stats.timestamp - stats_.timestamp, 
@@ -628,16 +633,10 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
 
       video_stats.video_caton_ms = video_stats.total_caton_delay_ms - video_item->second.total_caton_delay_ms;
       // 计算丢包
-      int flag = division_operation( (video_stats.packets_lost - video_item->second.packets_lost),
+      division_operation( (video_stats.packets_lost - video_item->second.packets_lost),
                                       video_stats.packets_received - video_item->second.packets_received,
                                       video_stats.quailty_parameter.fraction_lost,
                                       1);
-      if (flag < 0) {
-        RTC_LOG(LERROR) << "calc videoinband ssrc:" 
-                        << video_stats.ssrc
-                        << " fraction_lost error, error code:" 
-                        << flag;
-      }
       
     }
     // 统计整体丢包数
@@ -654,16 +653,12 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
   if (stats_.bytes_recv > 0) {
 
     division_operation( (stats.bytes_recv - stats_.bytes_recv) * 1000.0, 
-                         stats.timestamp - stats_.
-                         timestamp, stats.bitrate_recv);
+                         stats.timestamp - stats_.timestamp, stats.bitrate_recv);
 
-    int flag = division_operation( stats.packets_lost - stats_.packets_lost, 
-                                   stats.packets_received - stats_.packets_received,
-                                   stats.quailty_parameter.fraction_lost,
+    division_operation( stats.packets_lost - stats_.packets_lost, 
+                        stats.packets_received - stats_.packets_received,
+                        stats.quailty_parameter.fraction_lost,
                                    1);
-    if (flag < 0) {
-      RTC_LOG(LERROR) << "calc inband fraction_lost error, error code:" << flag;
-    }
   }
   std::lock_guard<std::mutex> guard(mutex_);
   stats_ = stats;

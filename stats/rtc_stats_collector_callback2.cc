@@ -44,7 +44,7 @@ namespace webrtc {
 
  template <typename T>
  T range_operation(const T& value, const T& min, const T& max) {
-   if (value < min && value > max) {
+   if (value < min || value > max) {
      return 0;
    }
    return value;
@@ -658,7 +658,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     division_operation( stats.packets_lost - stats_.packets_lost, 
                         stats.packets_received - stats_.packets_received,
                         stats.quailty_parameter.fraction_lost,
-                                   1);
+                        1);
   }
   std::lock_guard<std::mutex> guard(mutex_);
   stats_ = stats;

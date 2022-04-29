@@ -58,8 +58,8 @@ namespace {
 static LoggingSeverity g_min_sev = LS_INFO;
 static LoggingSeverity g_dbg_sev = LS_INFO;
 #else
-static LoggingSeverity g_min_sev = LS_NONE;
-static LoggingSeverity g_dbg_sev = LS_NONE;
+static LoggingSeverity g_min_sev = LS_ERROR;
+static LoggingSeverity g_dbg_sev = LS_ERROR;
 #endif
 
 // Return the filename portion of the string (that following the last slash).
@@ -79,6 +79,73 @@ webrtc::Mutex g_log_mutex_;
 
 }  // namespace
 
+std::string GetLoggingSeverityTypeString(LoggingSeverity severity) {
+  switch (severity) {
+    case rtc::LS_VERBOSE:
+      return "[LS_VERBOSE]";
+    case rtc::LS_INFO:
+      return "[LS_INFO   ]";
+    case rtc::LS_WARNING:
+      return "[LS_WARNING]";
+    case rtc::LS_ERROR:
+      return "[LS_ERROR  ]";
+    case rtc::LS_NONE:
+      return "[LS_NONE   ]";
+    default:
+      break;
+  }
+  return "[LS_NONE   ]";
+}
+
+#define NAMENUMBER 45
+std::string GetFuctionString(const char* file, int line) {
+  char tempName[NAMENUMBER] = {NULL};
+  tempName[0] = '[';
+  tempName[NAMENUMBER - 2] = ']';
+  tempName[NAMENUMBER - 1] = '\0';
+  const char* fileName = FilenameFromPath(file);
+
+  for (int i = 1; i < NAMENUMBER - 2; ++i) {
+    if (*fileName != '\0') {
+      tempName[i] = *fileName;
+      fileName++;
+    } else {
+      tempName[i] = ' ';
+    }
+  }
+
+  char tempLine[10] = {NULL};
+  sprintf(tempLine, "[%5d]", line);
+
+  return std::string(tempName) + std::string(tempLine);
+}
+
+#if _WIN32
+#include <time.h>
+#include <windows.h>
+std::string GetSystemTimeString() {
+  SYSTEMTIME sys;
+  GetLocalTime(&sys);
+  char tmp[64] = {NULL};
+  sprintf(tmp, "[%4d-%02d-%02d %02d:%02d:%02d ms:%03d]", sys.wYear, sys.wMonth,
+          sys.wDay, sys.wHour, sys.wMinute, sys.wSecond, sys.wMilliseconds);
+  return std::string(tmp);
+}
+#else
+#include <sys/time.h>
+#include <unistd.h>
+char* GetSystemTimeString() {
+  struct timeval now_time;
+  gettimeofday(&now_time, NULL);
+  time_t tt = now_time.tv_sec;
+  tm* temp = localtime(&tt);
+  char time_str[32] = {NULL};
+  sprintf(time_str, "[%04d-%02d-%02d%02d:%02d:%02d]", temp->tm_year + 1900,
+          temp->tm_mon + 1, temp->tm_mday, temp->tm_hour, temp->tm_min,
+          temp->tm_sec);
+  return time_str;
+}
+#endif
 /////////////////////////////////////////////////////////////////////////////
 // LogMessage
 /////////////////////////////////////////////////////////////////////////////
@@ -131,7 +198,10 @@ LogMessage::LogMessage(const char* file,
     tag_ = FilenameFromPath(file);
     print_stream_ << "(line " << line << "): ";
 #else
-    print_stream_ << "(" << FilenameFromPath(file) << ":" << line << "): ";
+    print_stream_ << GetLoggingSeverityTypeString(sev)
+                  << GetSystemTimeString() 
+                  <<"(" << FilenameFromPath(file) << ":"
+                  << line << "): ";
 #endif
   }
 

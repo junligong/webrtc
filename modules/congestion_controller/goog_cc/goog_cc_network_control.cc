@@ -176,6 +176,8 @@ NetworkControlUpdate GoogCcNetworkController::OnNetworkRouteChange(
 
 NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
     ProcessInterval msg) {
+
+  // 网络控制更新     
   NetworkControlUpdate update;
   if (initial_config_) {
     update.probe_cluster_configs =
@@ -615,8 +617,11 @@ NetworkControlUpdate GoogCcNetworkController::GetNetworkState(
 void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
     NetworkControlUpdate* update,
     Timestamp at_time) {
+  // 丢包率
   uint8_t fraction_loss = bandwidth_estimation_->fraction_loss();
+  // rtt
   TimeDelta round_trip_time = bandwidth_estimation_->round_trip_time();
+  // 基于丢包率的比特率
   DataRate loss_based_target_rate = bandwidth_estimation_->target_rate();
   DataRate pushback_target_rate = loss_based_target_rate;
 

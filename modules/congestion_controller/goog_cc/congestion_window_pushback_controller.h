@@ -20,11 +20,11 @@
 
 namespace webrtc {
 
-// This class enables pushback from congestion window directly to video encoder.
-// When the congestion window is filling up, the video encoder target bitrate
-// will be reduced accordingly to accommodate the network changes. To avoid
-// pausing video too frequently, a minimum encoder target bitrate threshold is
-// used to prevent video pause due to a full congestion window.
+// 此类支持从拥塞窗口直接推送到视频编码器。
+// 当拥塞窗口被填满时，视频编码器目标比特率将相应降低以适应网络变化
+// 为了避免过于频繁地暂停视频，使用最小编码器目标比特率阈值来防止视频由于完全拥塞窗口而暂停。
+
+// 拥塞窗口控制器
 class CongestionWindowPushbackController {
  public:
   explicit CongestionWindowPushbackController(

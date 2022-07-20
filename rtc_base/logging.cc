@@ -58,8 +58,8 @@ namespace {
 static LoggingSeverity g_min_sev = LS_INFO;
 static LoggingSeverity g_dbg_sev = LS_INFO;
 #else
-static LoggingSeverity g_min_sev = LS_ERROR;
-static LoggingSeverity g_dbg_sev = LS_ERROR;
+static LoggingSeverity g_min_sev = LS_INFO;
+static LoggingSeverity g_dbg_sev = LS_DEBUG;
 #endif
 
 // Return the filename portion of the string (that following the last slash).

@@ -414,17 +414,21 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   }
 
   if (congestion_window_pushback_controller_) {
+    // congestion_windows_pushback_controller 根据feedback更新
+    // 发送的数据
     congestion_window_pushback_controller_->UpdateOutstandingData(
         report.data_in_flight.bytes());
   }
   TimeDelta max_feedback_rtt = TimeDelta::MinusInfinity();
   TimeDelta min_propagation_rtt = TimeDelta::PlusInfinity();
   Timestamp max_recv_time = Timestamp::MinusInfinity();
-
+  // 遍历获取最大的包到达时间(feedback.receive_time)
   std::vector<PacketResult> feedbacks = report.ReceivedWithSendInfo();
   for (const auto& feedback : feedbacks)
     max_recv_time = std::max(max_recv_time, feedback.receive_time);
-
+    
+  // 从feedback中统计rtt，更新到各个组件
+  // 遍历获取最大的feedback_rtt(包发出去到收到feed包)和propagation_rtt(包在网络中传输的rtt，不包含在服务端pending的时间)
   for (const auto& feedback : feedbacks) {
     TimeDelta feedback_rtt =
         report.feedback_time - feedback.sent_packet.send_time;
@@ -433,26 +437,34 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
     max_feedback_rtt = std::max(max_feedback_rtt, feedback_rtt);
     min_propagation_rtt = std::min(min_propagation_rtt, propagation_rtt);
   }
-
+  // 更新PropagationRtt
   if (max_feedback_rtt.IsFinite()) {
     feedback_max_rtts_.push_back(max_feedback_rtt.ms());
     const size_t kMaxFeedbackRttWindow = 32;
+    // 滑动窗口feedback_max_rtts,长度为32
     if (feedback_max_rtts_.size() > kMaxFeedbackRttWindow)
       feedback_max_rtts_.pop_front();
     // TODO(srte): Use time since last unacknowledged packet.
     bandwidth_estimation_->UpdatePropagationRtt(report.feedback_time,
                                                 min_propagation_rtt);
   }
+  // 更新loss和delay estimation的rtt,注意
+  // loss使用的是feedback_min_rtt
+  // delay使用的是feedback_max_rtt
   if (packet_feedback_only_) {
+    // 计算平均feed_back_max_rtt
     if (!feedback_max_rtts_.empty()) {
       int64_t sum_rtt_ms = std::accumulate(feedback_max_rtts_.begin(),
                                            feedback_max_rtts_.end(), 0);
       int64_t mean_rtt_ms = sum_rtt_ms / feedback_max_rtts_.size();
+      // 更新bwe的rtt
       if (delay_based_bwe_)
         delay_based_bwe_->OnRttUpdate(TimeDelta::Millis(mean_rtt_ms));
     }
 
+    // 计算feedback_min_rtt,更新bandwidth_estimation_ rtt
     TimeDelta feedback_min_rtt = TimeDelta::PlusInfinity();
+    // 这块逻辑和上面计算feedback_max_rtt一样，写了重复代码
     for (const auto& packet_feedback : feedbacks) {
       TimeDelta pending_time = packet_feedback.receive_time - max_recv_time;
       TimeDelta rtt = report.feedback_time -
@@ -463,13 +475,15 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
     if (feedback_min_rtt.IsFinite()) {
       bandwidth_estimation_->UpdateRtt(feedback_min_rtt, report.feedback_time);
     }
-
+    // 更新丢包率
+    // 上次更新丢包后到现在应该收到的包的总数
     expected_packets_since_last_loss_update_ +=
         report.PacketsWithFeedback().size();
     for (const auto& packet_feedback : report.PacketsWithFeedback()) {
       if (!packet_feedback.IsReceived())
         lost_packets_since_last_loss_update_ += 1;
     }
+    // feedback_time大于丢包更新时间了，更新丢包率
     if (report.feedback_time > next_loss_update_) {
       next_loss_update_ = report.feedback_time + kLossUpdateInterval;
       bandwidth_estimation_->UpdatePacketsLost(
@@ -479,24 +493,29 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
       lost_packets_since_last_loss_update_ = 0;
     }
   }
+  // 获取当前是否处于alr
   absl::optional<int64_t> alr_start_time =
       alr_detector_->GetApplicationLimitedRegionStartTime();
 
+  // 告知acknowledge和probe_controller，当前不再处于alr
   if (previously_in_alr_ && !alr_start_time.has_value()) {
     int64_t now_ms = report.feedback_time.ms();
     acknowledged_bitrate_estimator_->SetAlrEndedTime(report.feedback_time);
     probe_controller_->SetAlrEndedTimeMs(now_ms);
   }
   previously_in_alr_ = alr_start_time.has_value();
+   // 预估接收端吞吐量
   acknowledged_bitrate_estimator_->IncomingPacketFeedbackVector(
       report.SortedByReceiveTime());
   auto acknowledged_bitrate = acknowledged_bitrate_estimator_->bitrate();
+  // 将其设置到bandwidth_estimation_中去更新链路容量(link_capacity)
   bandwidth_estimation_->SetAcknowledgedRate(acknowledged_bitrate,
                                              report.feedback_time);
   bandwidth_estimation_->IncomingPacketFeedbackVector(report);
   for (const auto& feedback : report.SortedByReceiveTime()) {
     if (feedback.sent_packet.pacing_info.probe_cluster_id !=
         PacedPacketInfo::kNotAProbe) {
+      // probe_estimator 根据返回的feedback更新带宽探测的计算
       probe_bitrate_estimator_->HandleProbeAndEstimateBitrate(feedback);
     }
   }
@@ -513,13 +532,18 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
           estimate_->link_capacity_lower, estimate_->link_capacity_upper));
     }
   }
+  // 获取上面循环更新probe_estimator的最终的结果
   absl::optional<DataRate> probe_bitrate =
       probe_bitrate_estimator_->FetchAndResetLastEstimatedBitrate();
+  // 如果enable probe < network_estimate时 忽略probe的特性，则忽略probe_bitrate
   if (ignore_probes_lower_than_network_estimate_ && probe_bitrate &&
       estimate_ && *probe_bitrate < delay_based_bwe_->last_estimate() &&
       *probe_bitrate < estimate_->link_capacity_lower) {
     probe_bitrate.reset();
   }
+  // 如果enable
+  // 将probe略小于throughput_estimate_(预估吞吐量)的特性
+  // 对probe现在acknowledged_bitrate(链路吞吐量)下
   if (limit_probes_lower_than_throughput_estimate_ && probe_bitrate &&
       acknowledged_bitrate) {
     // Limit the backoff to something slightly below the acknowledged
@@ -538,33 +562,42 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   NetworkControlUpdate update;
   bool recovered_from_overuse = false;
   bool backoff_in_alr = false;
-
+  // 使用feedback进行bwe预测，获得基于延迟的码率估计
   DelayBasedBwe::Result result;
   result = delay_based_bwe_->IncomingPacketFeedbackVector(
       report, acknowledged_bitrate, probe_bitrate, estimate_,
       alr_start_time.has_value());
 
   if (result.updated) {
+    // 预估码率更新了
     if (result.probe) {
+      // bwe使用了探测码率进行重设
+      // bandwidth_estimation_也进行重设sendbitrate
       bandwidth_estimation_->SetSendBitrate(result.target_bitrate,
                                             report.feedback_time);
     }
     // Since SetSendBitrate now resets the delay-based estimate, we have to
     // call UpdateDelayBasedEstimate after SetSendBitrate.
+    // 更新bandwidth_estimation_中基于延迟的估计码率
     bandwidth_estimation_->UpdateDelayBasedEstimate(report.feedback_time,
                                                     result.target_bitrate);
     // Update the estimate in the ProbeController, in case we want to probe.
+    // 将变化的码率通知到probe_controller, alr_detector, congestion_window等
     MaybeTriggerOnNetworkChanged(&update, report.feedback_time);
   }
   recovered_from_overuse = result.recovered_from_overuse;
   backoff_in_alr = result.backoff_in_alr;
 
   if (recovered_from_overuse) {
+    // 从overuse中恢复了，重设alr start 时间
     probe_controller_->SetAlrStartTimeMs(alr_start_time);
+    // 获取接下来要做带宽探测的参数，放到update中
     auto probes = probe_controller_->RequestProbe(report.feedback_time.ms());
     update.probe_cluster_configs.insert(update.probe_cluster_configs.end(),
                                         probes.begin(), probes.end());
   } else if (backoff_in_alr) {
+    // If we just backed off during ALR, request a new probe.
+    // 如果在alr中做了码率回退，进行新一轮的探测?
     // If we just backed off during ALR, request a new probe.
     auto probes = probe_controller_->RequestProbe(report.feedback_time.ms());
     update.probe_cluster_configs.insert(update.probe_cluster_configs.end(),
@@ -575,12 +608,15 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   // we don't try to limit the outstanding packets.
   if (rate_control_settings_.UseCongestionWindow() &&
       max_feedback_rtt.IsFinite()) {
+    // TODO 这个window需要花时间看一看，直接一直没有看这个东西
     UpdateCongestionWindowSize();
   }
   if (congestion_window_pushback_controller_ && current_data_window_) {
+    // 如果有congestion_window_pushback_controller_，将当前的窗口放在通知器下回推给编码器
     congestion_window_pushback_controller_->SetDataWindow(
         *current_data_window_);
   } else {
+    // 否则，直接放在结果中
     update.congestion_window = current_data_window_;
   }
 

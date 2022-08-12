@@ -58,7 +58,6 @@ RTCOutBandStats RTCOutBoundStatsCollectorCallBack::GetOutBandStats() const {
 void RTCOutBoundStatsCollectorCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) {
 
   Initialization();
-
   // 上行流
   auto outbounds = report->GetStatsOfType<webrtc::RTCOutboundRTPStreamStats>();
   for(const webrtc::RTCOutboundRTPStreamStats* outbound : outbounds) {
@@ -178,15 +177,22 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
     audio_outband_stats.packets_sent = audio_outbound->packets_sent.ValueOrDefault(0);
     audio_outband_stats.bytes_sent = audio_outbound->bytes_sent.ValueOrDefault(0);
     audio_outband_stats.audio_volume = audio_outbound->audio_volume.ValueOrDefault(0);
+
+    // 目前音频的Nack没有打开
+    audio_outband_stats.retransmitted_packets_sent = audio_outbound->retransmitted_packets_sent.ValueOrDefault(0);
+    audio_outband_stats.retransmitted_bytes_sent = audio_outbound->retransmitted_bytes_sent.ValueOrDefault(0);
+
+    audio_outband_stats.header_bytes_sent = audio_outbound->header_bytes_sent.ValueOrDefault(0);
+    audio_outband_stats.nack_count = audio_outbound->nack_count.ValueOrDefault(0);
+
     //  媒体信息
     if (audio_outbound->media_source_id.is_defined()) {
-      auto media_iter =
-          audio_mediasource_map.find(*audio_outbound->media_source_id);
+      auto media_iter = audio_mediasource_map.find(*audio_outbound->media_source_id);
       if (media_iter != audio_mediasource_map.end()) {
-        audio_outband_stats.audio_level =
-            media_iter->second->audio_level.ValueOrDefault(0);
-        audio_outband_stats.total_audio_energy =
-            media_iter->second->total_audio_energy.ValueOrDefault(0);
+        audio_outband_stats.audio_level = media_iter->second->audio_level.ValueOrDefault(0);
+        audio_outband_stats.total_audio_energy = media_iter->second->total_audio_energy.ValueOrDefault(0);
+        audio_outband_stats.echo_return_loss = media_iter->second->echo_return_loss.ValueOrDefault(0);
+        audio_outband_stats.echo_return_loss_enhancement = media_iter->second->echo_return_loss_enhancement.ValueOrDefault(0);
       }
     }
 
@@ -194,21 +200,16 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
     auto audio_codec = codec_map.find(*audio_outbound->codec_id);
     if (audio_codec != codec_map.end() && audio_codec->second) {
       audio_outband_stats.audio_codec.payload_type = audio_codec->second->payload_type.ValueOrDefault(0);
-      audio_outband_stats.audio_codec.mime_type =
-          *audio_codec->second->mime_type;
-      audio_outband_stats.audio_codec.clock_rate =
-          audio_codec->second->clock_rate.ValueOrDefault(0);
-      audio_outband_stats.audio_codec.channels =
-          audio_codec->second->channels.ValueOrDefault(0);
+      audio_outband_stats.audio_codec.mime_type = *audio_codec->second->mime_type;
+      audio_outband_stats.audio_codec.clock_rate = audio_codec->second->clock_rate.ValueOrDefault(0);
+      audio_outband_stats.audio_codec.channels = audio_codec->second->channels.ValueOrDefault(0);
     }
 
     // 远端信息 rtt等
     if (audio_outbound->remote_id.is_defined()) {
-      auto remote_iter =
-          remote_inbound_audio_map.find(*audio_outbound->remote_id);
+      auto remote_iter = remote_inbound_audio_map.find(*audio_outbound->remote_id);
       if (remote_iter != remote_inbound_audio_map.end()) {
-        audio_outband_stats.quailty_parameter.fraction_lost =
-            remote_iter->second->fraction_lost.ValueOrDefault(0);
+        audio_outband_stats.quailty_parameter.fraction_lost = remote_iter->second->fraction_lost.ValueOrDefault(0);
         audio_outband_stats.quailty_parameter.round_trip_time = range_operation(remote_iter->second->round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
       }
     }
@@ -218,14 +219,17 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
       auto audio_iter = stats_.audios.find(track_identifier);
       if (audio_iter != stats_.audios.end() &&
           audio_outband_stats.ssrc == audio_iter->second.ssrc) {
-
+        // 发送比特率
         division_operation( (audio_outband_stats.bytes_sent - audio_iter->second.bytes_sent) *1000.0,  
                              stats.timestamp - stats_.timestamp,
                              audio_outband_stats.bitrate_send );
+        // 重发比特率
+        division_operation((audio_outband_stats.retransmitted_bytes_sent - audio_iter->second.retransmitted_bytes_sent) * 1000.0,
+                            stats.timestamp - stats_.timestamp,
+                            audio_outband_stats.retransmitted_bitrate_send);
       }
       // 丢包 = 发包差 * 丢包率
-      stats.packets_lost += std::abs(int(audio_outband_stats.packets_sent - audio_iter->second.packets_sent)) *
-                            audio_outband_stats.quailty_parameter.fraction_lost;
+      stats.packets_lost += std::abs(int(audio_outband_stats.packets_sent - audio_iter->second.packets_sent)) * audio_outband_stats.quailty_parameter.fraction_lost;
     }
     stats.packets_sent += audio_outband_stats.packets_sent;
     stats.audios[track_identifier] = audio_outband_stats;
@@ -263,22 +267,22 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
     video_outband_stats.bytes_sent = video_outbound->bytes_sent.ValueOrDefault(0);
     video_outband_stats.qp_sum = video_outbound->qp_sum.ValueOrDefault(0);
     video_outband_stats.total_packet_send_delay = video_outbound->total_packet_send_delay.ValueOrDefault(0);
-    video_outband_stats.retransmitted_bytes_sent = video_outbound->retransmitted_bytes_sent.ValueOrDefault(0);
     video_outband_stats.frames_per_second = video_outbound->frames_per_second.ValueOrDefault(0);
     video_outband_stats.quality_limitation_reason = video_outbound->quality_limitation_reason.ValueOrDefault("");
     video_outband_stats.encoder_implementation = video_outbound->encoder_implementation.ValueOrDefault("");
+    video_outband_stats.retransmitted_packets_sent = video_outbound->retransmitted_packets_sent.ValueOrDefault(0);
+    video_outband_stats.header_bytes_sent = video_outbound->header_bytes_sent.ValueOrDefault(0);
+    video_outband_stats.retransmitted_bytes_sent = video_outbound->retransmitted_bytes_sent.ValueOrDefault(0);
+    video_outband_stats.key_frames_encoded = video_outbound->key_frames_encoded.ValueOrDefault(0);
+    video_outband_stats.huge_frames_sent = video_outbound->huge_frames_sent.ValueOrDefault(0);
     
     // 编码器
     auto video_codec = codec_map.find(*video_outbound->codec_id);
     if (video_codec != codec_map.end() && video_codec->second) {
-      video_outband_stats.video_codec.payload_type =
-          video_codec->second->payload_type.ValueOrDefault(0);
-      video_outband_stats.video_codec.mime_type =
-          *video_codec->second->mime_type;
-      video_outband_stats.video_codec.clock_rate =
-          video_codec->second->clock_rate.ValueOrDefault(0);
-      video_outband_stats.video_codec.channels =
-          video_codec->second->channels.ValueOrDefault(0);
+      video_outband_stats.video_codec.payload_type = video_codec->second->payload_type.ValueOrDefault(0);
+      video_outband_stats.video_codec.mime_type = *video_codec->second->mime_type;
+      video_outband_stats.video_codec.clock_rate = video_codec->second->clock_rate.ValueOrDefault(0);
+      video_outband_stats.video_codec.channels = video_codec->second->channels.ValueOrDefault(0);
     }
 
     // 计算rtt、丢包
@@ -343,10 +347,10 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
                           stats.timestamp - stats_.timestamp, 
                           stats.bitrate_send );
 
-     division_operation( stats.packets_lost,
-                         std::abs(double(stats.packets_sent - stats_.packets_sent)),
-                         stats.quailty_parameter.fraction_lost,
-                         1);
+     double d_sent = (double(stats.packets_sent - stats_.packets_sent));
+
+     division_operation(stats.packets_lost, d_sent,
+                        stats.quailty_parameter.fraction_lost);
    }
   std::lock_guard<std::mutex> guard(mutex_);
   stats_ = stats;
@@ -487,6 +491,8 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     audio_stats.concealment_events = inbound_audio->concealment_events.ValueOrDefault(0);
     audio_stats.inserted_samples_for_deceleration = inbound_audio->inserted_samples_for_deceleration.ValueOrDefault(0);
     audio_stats.removed_samples_for_acceleration = inbound_audio->removed_samples_for_acceleration.ValueOrDefault(0);
+    audio_stats.header_bytes_received = inbound_audio->header_bytes_received.ValueOrDefault(0);
+    audio_stats.packets_discarded = inbound_audio->packets_discarded.ValueOrDefault(0);
 
     audio_stats.jitter = inbound_audio->jitter.ValueOrDefault(0);
     audio_stats.jitter_buffer_delay = range_operation(inbound_audio->jitter_buffer_delay.ValueOrDefault(0), JITTER_BUFFER_DELAY_MIN, JITTER_BUFFER_DELAY_MAX);
@@ -502,45 +508,66 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     // 编码器
     auto audio_codec = codec_map.find(*inbound_audio->codec_id);
     if (audio_codec != codec_map.end() && audio_codec->second) {
-      audio_stats.audio_codec.payload_type =
-          audio_codec->second->payload_type.ValueOrDefault(0);
+      audio_stats.audio_codec.payload_type = audio_codec->second->payload_type.ValueOrDefault(0);
       audio_stats.audio_codec.mime_type = *audio_codec->second->mime_type;
-      audio_stats.audio_codec.clock_rate =
-          audio_codec->second->clock_rate.ValueOrDefault(0);
-      audio_stats.audio_codec.channels =
-          audio_codec->second->channels.ValueOrDefault(0);
+      audio_stats.audio_codec.clock_rate = audio_codec->second->clock_rate.ValueOrDefault(0);
+      audio_stats.audio_codec.channels = audio_codec->second->channels.ValueOrDefault(0);
+    }
+
+    // 远端音频信息
+    if (!(*inbound_audio->remote_id).empty()){
+      auto remote_audio = remote_outbound_audio_map.find(*inbound_audio->remote_id);
+      if (remote_audio != remote_outbound_audio_map.end() && remote_audio->second) {
+        audio_stats.remote_packets_sent = remote_audio->second->packets_sent.ValueOrDefault(0);
+        audio_stats.remote_bytes_sent = remote_audio->second->bytes_sent.ValueOrDefault(0);
+        audio_stats.remote_reports_sent = remote_audio->second->reports_sent.ValueOrDefault(0);
+      }
     }
 
     // tarck
     auto audio_track = track_map.find(*inbound_audio->track_id);
     if (audio_track != track_map.end() && audio_track->second) {
-      audio_stats.relativePacketArrivalDelay =
-          audio_track->second->relative_packet_arrival_delay.ValueOrDefault(0);
+      audio_stats.jitter_buffer_flushes = audio_track->second->jitter_buffer_flushes.ValueOrDefault(0);
+      audio_stats.delayed_packet_outage_samples = audio_track->second->delayed_packet_outage_samples.ValueOrDefault(0);
+      audio_stats.interruption_count = audio_track->second->interruption_count.ValueOrDefault(0);
+      audio_stats.relative_packet_arrival_delay = audio_track->second->relative_packet_arrival_delay.ValueOrDefault(0);
+      audio_stats.jitter_buffer_target_delay = audio_track->second->jitter_buffer_target_delay.ValueOrDefault(0);
+      audio_stats.total_interruption_duration = audio_track->second->total_interruption_duration.ValueOrDefault(0);
     }
 
     auto audio_item = stats_.audios.find(track_identifier);
     if (audio_item != stats_.audios.end() && audio_stats.ssrc == audio_item->second.ssrc) {
       //已有数据则合并，相邻数据
       division_operation( (audio_stats.packets_lost - audio_item->second.packets_lost),
-                                      audio_stats.packets_received - audio_item->second.packets_received,
-                                      audio_stats.quailty_parameter.fraction_lost,
-                                      1);
+                           audio_stats.packets_received - audio_item->second.packets_received,
+                           audio_stats.quailty_parameter.fraction_lost,
+                           1);
 
-      //码率
+      // 码率
       division_operation( (audio_stats.bytes_received - audio_item->second.bytes_received) * 1000,
                            stats.timestamp - stats_.
                            timestamp, audio_stats.bitrate_recv);
 
-      // 音频卡顿----Todo
-      audio_stats.audio_caton_ms = audio_item->second.audio_caton_ms;
 
-      division_operation( (audio_stats.total_samples_duration - audio_item->second.total_samples_duration) * 1000.0,
-                           audio_stats.total_samples_received - audio_item->second.total_samples_received,
-                           audio_stats.audio_caton_ms);
+//       division_operation( (audio_stats.total_samples_duration - audio_item->second.total_samples_duration) * 1000.0,
+//                            audio_stats.total_samples_received - audio_item->second.total_samples_received,
+//                            audio_stats.audio_caton_ms);
 
-      division_operation( (audio_stats.relativePacketArrivalDelay - audio_item->second.relativePacketArrivalDelay) * 1000.0,
-                           audio_stats.packets_received - audio_item->second.packets_received,
-                           audio_stats.audio_delay );
+      division_operation((audio_stats.relative_packet_arrival_delay - audio_item->second.relative_packet_arrival_delay) *1000.0,
+                          audio_stats.packets_received - audio_item->second.packets_received,
+                          audio_stats.audio_delay );
+
+      // 计算远端发送码率
+      division_operation((audio_stats.remote_bytes_sent - audio_item->second.remote_bytes_sent) * 1000,
+                         stats.timestamp - stats_.timestamp,
+                         audio_stats.remote_bitrate_send);
+
+      // 卡顿= 总计中断时长之差
+      audio_stats.audio_caton_ms = audio_stats.total_interruption_duration - audio_item->second.total_interruption_duration;
+
+      // 平均抖动延迟= 
+      audio_stats.audio_delay = audio_stats.relative_packet_arrival_delay;
+
     }
     // 统计整体丢包数
     stats.packets_lost += inbound_audio->packets_lost.ValueOrDefault(0);
@@ -570,19 +597,20 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     }
     video_stats.packets_received = inbound_video->packets_received.ValueOrDefault(0);
     video_stats.frames_received = inbound_video->frames_received.ValueOrDefault(0);
+    video_stats.frames_dropped = inbound_video->frames_dropped.ValueOrDefault(0);
+    video_stats.frames_decoded = inbound_video->frames_decoded.ValueOrDefault(0);
+    video_stats.frame_width = inbound_video->frame_width.ValueOrDefault(0);
+    video_stats.frame_height = inbound_video->frame_height.ValueOrDefault(0);
     video_stats.fir_count = inbound_video->fir_count.ValueOrDefault(0);
     video_stats.pli_count = inbound_video->pli_count.ValueOrDefault(0);
     video_stats.nack_count = inbound_video->nack_count.ValueOrDefault(0);
     video_stats.qp_sum = inbound_video->qp_sum.ValueOrDefault(0);
-    video_stats.frame_width = inbound_video->frame_width.ValueOrDefault(0);
-    video_stats.frame_height = inbound_video->frame_height.ValueOrDefault(0);
-    video_stats.frames_decoded = inbound_video->frames_decoded.ValueOrDefault(0);
-    video_stats.key_frames_decoded = inbound_video->key_frames_decoded.ValueOrDefault(0);
-    video_stats.frames_dropped = inbound_video->frames_dropped.ValueOrDefault(0);
+    video_stats.key_frames_decoded =inbound_video->key_frames_decoded.ValueOrDefault(0);
     video_stats.render_delay_ms = inbound_video->render_delay_ms.ValueOrDefault(0);
     video_stats.target_delay_ms = inbound_video->target_delay_ms.ValueOrDefault(0);
     video_stats.bytes_received = inbound_video->bytes_received.ValueOrDefault(0);
-
+    video_stats.header_bytes_received = inbound_video->header_bytes_received.ValueOrDefault(0);
+    video_stats.jitter_buffer_emitted_count = inbound_video->jitter_buffer_emitted_count.ValueOrDefault(0);
     video_stats.jitter = inbound_video->jitter.ValueOrDefault(0);
     video_stats.jitter_buffer_delay = range_operation(inbound_video->jitter_buffer_delay.ValueOrDefault(0), JITTER_BUFFER_DELAY_MIN, JITTER_BUFFER_DELAY_MAX);
     video_stats.packets_lost = inbound_video->packets_lost.ValueOrDefault(0);
@@ -592,31 +620,24 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     video_stats.total_squared_inter_frame_delay = inbound_video->total_squared_inter_frame_delay.ValueOrDefault(0);
     video_stats.total_caton_count =inbound_video->total_caton_count.ValueOrDefault(0);
     video_stats.total_caton_delay_ms = inbound_video->total_caton_delay_ms.ValueOrDefault(0);
+    video_stats.decoder_implementation = *inbound_video->decoder_implementation;
 
     // 编码器
     auto video_codec = codec_map.find(*inbound_video->codec_id);
     if (video_codec != codec_map.end() && video_codec->second) {
-      video_stats.video_codec.payload_type =
-          video_codec->second->payload_type.ValueOrDefault(0);
+      video_stats.video_codec.payload_type = video_codec->second->payload_type.ValueOrDefault(0);
       video_stats.video_codec.mime_type = *video_codec->second->mime_type;
-      video_stats.video_codec.clock_rate =
-          video_codec->second->clock_rate.ValueOrDefault(0);
-      video_stats.video_codec.channels =
-          video_codec->second->channels.ValueOrDefault(0);
+      video_stats.video_codec.clock_rate = video_codec->second->clock_rate.ValueOrDefault(0);
+      video_stats.video_codec.channels = video_codec->second->channels.ValueOrDefault(0);
     }
 
     // track信息
     if (track_iter->second) {
-      video_stats.freeze_count =
-          track_iter->second->freeze_count.ValueOrDefault(0);
-      video_stats.total_freezes_duration =
-          track_iter->second->total_freezes_duration.ValueOrDefault(0);
-      video_stats.total_pauses_duration =
-          track_iter->second->total_pauses_duration.ValueOrDefault(0);
-      video_stats.total_frames_duration =
-          track_iter->second->total_frames_duration.ValueOrDefault(0);
-      video_stats.sum_squared_frame_durations =
-          track_iter->second->sum_squared_frame_durations.ValueOrDefault(0);
+      video_stats.freeze_count = track_iter->second->freeze_count.ValueOrDefault(0);
+      video_stats.total_freezes_duration = track_iter->second->total_freezes_duration.ValueOrDefault(0);
+      video_stats.total_pauses_duration = track_iter->second->total_pauses_duration.ValueOrDefault(0);
+      video_stats.total_frames_duration = track_iter->second->total_frames_duration.ValueOrDefault(0);
+      video_stats.sum_squared_frame_durations = track_iter->second->sum_squared_frame_durations.ValueOrDefault(0);
     }
     // 计算
     auto video_item = stats_.videos.find(track_identifier);
@@ -634,9 +655,9 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
       video_stats.video_caton_ms = video_stats.total_caton_delay_ms - video_item->second.total_caton_delay_ms;
       // 计算丢包
       division_operation( (video_stats.packets_lost - video_item->second.packets_lost),
-                                      video_stats.packets_received - video_item->second.packets_received,
-                                      video_stats.quailty_parameter.fraction_lost,
-                                      1);
+                           video_stats.packets_received - video_item->second.packets_received,
+                           video_stats.quailty_parameter.fraction_lost,
+                           1);
       
     }
     // 统计整体丢包数
@@ -655,8 +676,8 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     division_operation( (stats.bytes_recv - stats_.bytes_recv) * 1000.0, 
                          stats.timestamp - stats_.timestamp, stats.bitrate_recv);
 
-    division_operation( stats.packets_lost - stats_.packets_lost, 
-                        stats.packets_received - stats_.packets_received,
+    division_operation((int)stats.packets_lost - stats_.packets_lost, 
+                        int(stats.packets_received - stats_.packets_received),
                         stats.quailty_parameter.fraction_lost,
                         1);
   }

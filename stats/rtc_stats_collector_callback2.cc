@@ -593,8 +593,6 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
       // 卡顿= 总计中断时长之差
       audio_stats.audio_caton_ms = audio_stats.total_interruption_duration - audio_item->second.total_interruption_duration;
 
-      RTC_LOG(DEBUG) << audio_stats.audio_delay;
-
     }
     // 统计整体丢包数
     stats.packets_lost += inbound_audio->packets_lost.ValueOrDefault(0);

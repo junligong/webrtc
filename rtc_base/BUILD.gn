@@ -972,6 +972,8 @@ rtc_library("rtc_base") {
     "async_invoker_inl.h",
     "async_packet_socket.cc",
     "async_packet_socket.h",
+    "public.cc",
+    "public.h",
     "async_tcp_socket.cc",
     "async_tcp_socket.h",
     "async_udp_socket.cc",

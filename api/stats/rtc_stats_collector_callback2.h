@@ -52,6 +52,10 @@ struct RTCAudioOutBandStats {
   // RTCRemoteInboundRtpStreamStats
   RTCOutBoundNetworkQuality quailty_parameter;// 网络质量
 
+  double jitter = 0;						  // 对端接收抖动
+  double total_round_trip_time = 0;			  // 总计RTT
+  double round_trip_time_measurements = 0;    // RTT计算次数
+
   // calculate
   NetworkQuality network_quality = kNormal;		
   double bitrate_send = 0;					 // 发送总数
@@ -87,6 +91,10 @@ struct RTCVideoOutBandStats {
 
   // RTCRemoteInboundRtpStreamStats
   RTCOutBoundNetworkQuality quailty_parameter;// 质量参数
+
+  double jitter = 0;                        // 对端接收抖动
+  double total_round_trip_time = 0;         // 总计RTT
+  double round_trip_time_measurements = 0;  // RTT计算次数
  
  // calculate
   double bitrate_send = 0;                   // 上行码率

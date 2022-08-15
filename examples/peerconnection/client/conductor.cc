@@ -111,10 +111,23 @@ Conductor::Conductor(PeerConnectionClient* client, MainWindow* main_wnd)
     : peer_id_(-1), loopback_(false), client_(client), main_wnd_(main_wnd) {
   client_->RegisterObserver(this);
   main_wnd->RegisterObserver(this);
+
+  stats_callback = new rtc::RefCountedObject<webrtc::StatsCollectorCallback>();
+  stats_callback2 = new rtc::RefCountedObject<webrtc::StatsCollectorCallback2>();
+
+  timer_.start(2000, [this]() {
+    if (peer_connection_){
+      peer_connection_->GetStats(stats_callback);
+      stats_callback->GetOutBandStats();
+      peer_connection_->GetStats(stats_callback2);
+      stats_callback2->GetInBandStats();
+    }
+  });
 }
 
 Conductor::~Conductor() {
   RTC_DCHECK(!peer_connection_);
+  timer_.stop();
 }
 
 bool Conductor::connection_active() const {

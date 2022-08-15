@@ -25,6 +25,7 @@
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
+#include "rtc_base/public.h"
 
 namespace webrtc {
 
@@ -394,6 +395,8 @@ void BitrateAllocator::OnNetworkEstimateChanged(TargetTransferRate msg) {
     RTC_LOG(LS_INFO) << "Current BWE " << last_target_bps_;
     last_bwe_log_time_ = now;
   }
+
+  write_bitrate(last_target_bps_, now);
 
   auto allocation = AllocateBitrates(allocatable_tracks_, last_target_bps_);
   auto stable_bitrate_allocation =

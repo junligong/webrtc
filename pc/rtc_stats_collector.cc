@@ -690,6 +690,9 @@ ProduceRemoteInboundRtpStreamStatsFromReportBlockData(
         // to seconds we divide by the codec's clock rate.
         remote_inbound->jitter =
             static_cast<double>(report_block.jitter) / *codec.clock_rate;
+
+        RTC_LOG(DEBUG) << "ssrc:" << report_block.source_ssrc
+                       << " jitter:" << remote_inbound->jitter.ValueOrDefault(0);
       }
     }
   }

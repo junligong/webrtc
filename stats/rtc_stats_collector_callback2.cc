@@ -211,6 +211,9 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
       if (remote_iter != remote_inbound_audio_map.end()) {
         audio_outband_stats.quailty_parameter.fraction_lost = remote_iter->second->fraction_lost.ValueOrDefault(0);
         audio_outband_stats.quailty_parameter.round_trip_time = range_operation(remote_iter->second->round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
+        audio_outband_stats.jitter = remote_iter->second->jitter.ValueOrDefault(0);
+        audio_outband_stats.total_round_trip_time = remote_iter->second->total_round_trip_time.ValueOrDefault(0);
+        audio_outband_stats.round_trip_time_measurements = remote_iter->second->round_trip_time_measurements.ValueOrDefault(0);
       }
     }
 
@@ -287,10 +290,14 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
 
     // 计算rtt、丢包
     if (video_outbound->remote_id.is_defined()) {
-      auto romote_iter = remote_inbound_video_map.find(*video_outbound->remote_id);
-      if (romote_iter != remote_inbound_video_map.end()) {
-        video_outband_stats.quailty_parameter.fraction_lost = romote_iter->second->fraction_lost.ValueOrDefault(0);
-        video_outband_stats.quailty_parameter.round_trip_time = range_operation(romote_iter->second->round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
+      auto remote_iter = remote_inbound_video_map.find(*video_outbound->remote_id);
+      if (remote_iter != remote_inbound_video_map.end()) {
+        video_outband_stats.quailty_parameter.fraction_lost = remote_iter->second->fraction_lost.ValueOrDefault(0);
+        video_outband_stats.quailty_parameter.round_trip_time = range_operation( remote_iter->second->round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
+
+        video_outband_stats.jitter = remote_iter->second->jitter.ValueOrDefault(0);
+        video_outband_stats.total_round_trip_time = remote_iter->second->total_round_trip_time.ValueOrDefault(0);
+        video_outband_stats.round_trip_time_measurements = remote_iter->second->round_trip_time_measurements.ValueOrDefault(0);
       }
     }
     //  计算发送码率、发包延迟、qp值

@@ -60,6 +60,7 @@ struct RTCAudioOutBandStats {
   NetworkQuality network_quality = kNormal;		
   double bitrate_send = 0;					 // 发送总数
   double retransmitted_bitrate_send = 0;	 // 重发码率
+  uint64_t target_delay_ms = 0;				 // To do,需要自己实现
 };
 
 // 视频上行
@@ -81,11 +82,11 @@ struct RTCVideoOutBandStats {
   uint64_t retransmitted_bytes_sent = 0;	 // 重传的字节总数，仅包括有效载荷字节
   uint32_t key_frames_encoded;				 // 关键帧编码数
   uint32_t huge_frames_sent;				 // huge帧总数,huge帧编码大小至少是帧平均大小的2.5倍
-  double total_packet_send_delay = 0;          // 总计发包延迟
-  double frames_per_second = 0;                // 发送帧率
-  std::string quality_limitation_reason = "";  // 影响质量的原因
-  std::string encoder_implementation = "";     // 编码器实现
-
+  double total_packet_send_delay = 0;        // 总计发包延迟
+  double frames_per_second = 0;              // 发送帧率
+  std::string quality_limitation_reason = "";// 影响质量的原因
+  std::string encoder_implementation = "";   // 编码器实现
+											 
   // RTCCodecStats
   RTCCodec video_codec;						 // 视频编码器
 
@@ -173,7 +174,7 @@ struct RTCAudioInBandStats {
 
   // calculate
   double bitrate_recv = 0;									 // 下行码率
-  double remote_bitrate_send = 0;								 // 远端发送码率
+  double remote_bitrate_send = 0;						     // 远端发送码率
   RTCInBoundNetworkQuality quailty_parameter;				 // 质量参数
   NetworkQuality network_quality = kNormal;					 // 质量
   double audio_caton_ms = 0;								 // 音频卡顿时长

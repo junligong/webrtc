@@ -215,6 +215,19 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
         audio_outband_stats.total_round_trip_time = remote_iter->second->total_round_trip_time.ValueOrDefault(0);
         audio_outband_stats.round_trip_time_measurements = remote_iter->second->round_trip_time_measurements.ValueOrDefault(0);
       }
+    } else { // 如果取不到远端信息,则保持和上一个一致
+
+        // 获取上一个音频参数
+      auto audio_iter = stats_.audios.find(track_identifier);
+      if (audio_iter != stats_.audios.end() &&
+            audio_outband_stats.ssrc == audio_iter->second.ssrc){
+
+        audio_outband_stats.quailty_parameter.fraction_lost = audio_iter->second.quailty_parameter.fraction_lost;
+        audio_outband_stats.quailty_parameter.round_trip_time = audio_iter->second.quailty_parameter.round_trip_time;
+        audio_outband_stats.jitter = audio_iter->second.jitter;
+        audio_outband_stats.total_round_trip_time = audio_iter->second.total_round_trip_time;
+        audio_outband_stats.round_trip_time_measurements = audio_iter->second.round_trip_time_measurements;
+      }
     }
 
     // 计算发送码率
@@ -306,6 +319,28 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
       auto video_iter = stats_.videos.find(track_identifier);
       if (video_iter != stats_.videos.end() &&
           video_outband_stats.ssrc == video_iter->second.ssrc) {
+
+          if (video_outband_stats.quailty_parameter.fraction_lost == 0)
+          {
+             video_outband_stats.quailty_parameter.fraction_lost = video_iter->second.quailty_parameter.fraction_lost;
+          }
+          if (video_outband_stats.quailty_parameter.round_trip_time == 0)
+          {
+            video_outband_stats.quailty_parameter.round_trip_time = video_iter->second.quailty_parameter.round_trip_time;
+          }
+          if (video_outband_stats.jitter == 0)
+          {
+            video_outband_stats.jitter = video_iter->second.jitter;
+          }
+          if (video_outband_stats.total_round_trip_time == 0)
+          {
+            video_outband_stats.total_round_trip_time = video_iter->second.total_round_trip_time;
+          }
+          if (video_outband_stats.round_trip_time_measurements == 0)
+          {
+            video_outband_stats.round_trip_time_measurements = video_iter->second.round_trip_time_measurements;
+          }
+
         division_operation( (video_outband_stats.bytes_sent - video_iter->second.bytes_sent) *1000.0, 
                             (stats.timestamp - stats_.timestamp),
                              video_outband_stats.bitrate_send);

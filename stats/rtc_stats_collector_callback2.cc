@@ -153,7 +153,10 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
   // 读取带宽、rtt
   if (!candidate_pair_map.empty() && candidate_pair_map.begin()->second) {
     stats.available_outgoing_bitrate = candidate_pair_map.begin()->second->available_outgoing_bitrate.ValueOrDefault(0) / 1000.0;
-    stats.quailty_parameter.round_trip_time = range_operation(candidate_pair_map.begin()->second->current_round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
+    stats.quailty_parameter.round_trip_time = candidate_pair_map.begin()->second->current_round_trip_time.ValueOrDefault(0) * 1000;
+    if (stats.quailty_parameter.round_trip_time == 0) {
+      stats.quailty_parameter.round_trip_time = stats_.quailty_parameter.round_trip_time;
+    }
   }
   // 遍历上行音频流
   for (auto audio_outbound : outbound_audio_map) {
@@ -178,7 +181,7 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
     audio_outband_stats.bytes_sent = audio_outbound->bytes_sent.ValueOrDefault(0);
     audio_outband_stats.audio_volume = audio_outbound->audio_volume.ValueOrDefault(0);
 
-    // 目前音频的Nack没有打开
+    // 音频Nack重发包
     audio_outband_stats.retransmitted_packets_sent = audio_outbound->retransmitted_packets_sent.ValueOrDefault(0);
     audio_outband_stats.retransmitted_bytes_sent = audio_outbound->retransmitted_bytes_sent.ValueOrDefault(0);
 
@@ -210,31 +213,26 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
       auto remote_iter = remote_inbound_audio_map.find(*audio_outbound->remote_id);
       if (remote_iter != remote_inbound_audio_map.end()) {
         audio_outband_stats.quailty_parameter.fraction_lost = remote_iter->second->fraction_lost.ValueOrDefault(0);
-        audio_outband_stats.quailty_parameter.round_trip_time = range_operation(remote_iter->second->round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
-        audio_outband_stats.jitter = remote_iter->second->jitter.ValueOrDefault(0);
-        audio_outband_stats.total_round_trip_time = remote_iter->second->total_round_trip_time.ValueOrDefault(0);
+        audio_outband_stats.quailty_parameter.round_trip_time = remote_iter->second->round_trip_time.ValueOrDefault(0) * 1000;
+        audio_outband_stats.jitter = remote_iter->second->jitter.ValueOrDefault(0) * 1000;
+        audio_outband_stats.total_round_trip_time = remote_iter->second->total_round_trip_time.ValueOrDefault(0) * 1000;
         audio_outband_stats.round_trip_time_measurements = remote_iter->second->round_trip_time_measurements.ValueOrDefault(0);
       }
-    } else { // 如果取不到远端信息,则保持和上一个一致
-
-        // 获取上一个音频参数
-      auto audio_iter = stats_.audios.find(track_identifier);
-      if (audio_iter != stats_.audios.end() &&
-            audio_outband_stats.ssrc == audio_iter->second.ssrc){
-
-        audio_outband_stats.quailty_parameter.fraction_lost = audio_iter->second.quailty_parameter.fraction_lost;
-        audio_outband_stats.quailty_parameter.round_trip_time = audio_iter->second.quailty_parameter.round_trip_time;
-        audio_outband_stats.jitter = audio_iter->second.jitter;
-        audio_outband_stats.total_round_trip_time = audio_iter->second.total_round_trip_time;
-        audio_outband_stats.round_trip_time_measurements = audio_iter->second.round_trip_time_measurements;
-      }
-    }
+    } 
 
     // 计算发送码率
     if (stats_.timestamp > 0) {
       auto audio_iter = stats_.audios.find(track_identifier);
       if (audio_iter != stats_.audios.end() &&
           audio_outband_stats.ssrc == audio_iter->second.ssrc) {
+
+        if (audio_outband_stats.quailty_parameter.round_trip_time == 0) {
+          audio_outband_stats.quailty_parameter.round_trip_time = audio_iter->second.quailty_parameter.round_trip_time;
+        }
+        if (audio_outband_stats.jitter == 0) {
+          audio_outband_stats.jitter = audio_iter->second.jitter;
+        } 
+
         // 发送比特率
         division_operation( (audio_outband_stats.bytes_sent - audio_iter->second.bytes_sent) *1000.0,  
                              stats.timestamp - stats_.timestamp,
@@ -306,10 +304,10 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
       auto remote_iter = remote_inbound_video_map.find(*video_outbound->remote_id);
       if (remote_iter != remote_inbound_video_map.end()) {
         video_outband_stats.quailty_parameter.fraction_lost = remote_iter->second->fraction_lost.ValueOrDefault(0);
-        video_outband_stats.quailty_parameter.round_trip_time = range_operation( remote_iter->second->round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
+        video_outband_stats.quailty_parameter.round_trip_time = remote_iter->second->round_trip_time.ValueOrDefault(0) * 1000;
 
-        video_outband_stats.jitter = remote_iter->second->jitter.ValueOrDefault(0);
-        video_outband_stats.total_round_trip_time = remote_iter->second->total_round_trip_time.ValueOrDefault(0);
+        video_outband_stats.jitter = remote_iter->second->jitter.ValueOrDefault(0) * 1000;
+        video_outband_stats.total_round_trip_time = remote_iter->second->total_round_trip_time.ValueOrDefault(0) * 1000;
         video_outband_stats.round_trip_time_measurements = remote_iter->second->round_trip_time_measurements.ValueOrDefault(0);
       }
     }
@@ -317,29 +315,14 @@ void RTCOutBoundStatsCollectorCallBack::CalcStats() {
     video_outband_stats.target_delay_ms = 0;
     if (stats_.timestamp) {
       auto video_iter = stats_.videos.find(track_identifier);
-      if (video_iter != stats_.videos.end() &&
-          video_outband_stats.ssrc == video_iter->second.ssrc) {
+      if (video_iter != stats_.videos.end() && video_outband_stats.ssrc == video_iter->second.ssrc) {
 
-          if (video_outband_stats.quailty_parameter.fraction_lost == 0)
-          {
-             video_outband_stats.quailty_parameter.fraction_lost = video_iter->second.quailty_parameter.fraction_lost;
-          }
-          if (video_outband_stats.quailty_parameter.round_trip_time == 0)
-          {
-            video_outband_stats.quailty_parameter.round_trip_time = video_iter->second.quailty_parameter.round_trip_time;
-          }
-          if (video_outband_stats.jitter == 0)
-          {
-            video_outband_stats.jitter = video_iter->second.jitter;
-          }
-          if (video_outband_stats.total_round_trip_time == 0)
-          {
-            video_outband_stats.total_round_trip_time = video_iter->second.total_round_trip_time;
-          }
-          if (video_outband_stats.round_trip_time_measurements == 0)
-          {
-            video_outband_stats.round_trip_time_measurements = video_iter->second.round_trip_time_measurements;
-          }
+        if (video_outband_stats.quailty_parameter.round_trip_time == 0) {
+          video_outband_stats.quailty_parameter.round_trip_time = video_iter->second.quailty_parameter.round_trip_time;
+        }
+        if (video_outband_stats.jitter == 0) {
+          video_outband_stats.jitter = video_iter->second.jitter;
+        }
 
         division_operation( (video_outband_stats.bytes_sent - video_iter->second.bytes_sent) *1000.0, 
                             (stats.timestamp - stats_.timestamp),
@@ -408,7 +391,6 @@ RTCInBandStats RTCInBoundStatsCollectorCallBack::GetInBandStats() const {
 }
 
 void RTCInBoundStatsCollectorCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) {
-
   Initialization();
   // 下行
   auto intbounds = report->GetStatsOfType<webrtc::RTCInboundRTPStreamStats>();
@@ -498,7 +480,11 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
   RTCInBandStats stats;
   // 读取rtt
   if (!candidate_pair_map.empty() && candidate_pair_map.begin()->second) {
-    stats.quailty_parameter.round_trip_time = range_operation(candidate_pair_map.begin()->second->current_round_trip_time.ValueOrDefault(0), RTT_MIN, RTT_MAX);
+    stats.quailty_parameter.round_trip_time = candidate_pair_map.begin()->second->current_round_trip_time.ValueOrDefault(0) * 1000;
+
+    if (stats.quailty_parameter.round_trip_time == 0){
+      stats.quailty_parameter.round_trip_time = stats_.quailty_parameter.round_trip_time;
+    }
   }
 
   // 下行音频
@@ -536,8 +522,8 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     audio_stats.header_bytes_received = inbound_audio->header_bytes_received.ValueOrDefault(0);
     audio_stats.packets_discarded = inbound_audio->packets_discarded.ValueOrDefault(0);
 
-    audio_stats.jitter = inbound_audio->jitter.ValueOrDefault(0);
-    audio_stats.jitter_buffer_delay = range_operation(inbound_audio->jitter_buffer_delay.ValueOrDefault(0), JITTER_BUFFER_DELAY_MIN, JITTER_BUFFER_DELAY_MAX);
+    audio_stats.jitter = inbound_audio->jitter.ValueOrDefault(0) * 1000;
+    //audio_stats.jitter_buffer_delay = range_operation(inbound_audio->jitter_buffer_delay.ValueOrDefault(0), JITTER_BUFFER_DELAY_MIN, JITTER_BUFFER_DELAY_MAX);
     audio_stats.packets_lost = inbound_audio->packets_lost.ValueOrDefault(0);
     audio_stats.delay_estimate_ms = inbound_audio->target_delay_ms.ValueOrDefault(0);
 
@@ -607,8 +593,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
       // 卡顿= 总计中断时长之差
       audio_stats.audio_caton_ms = audio_stats.total_interruption_duration - audio_item->second.total_interruption_duration;
 
-      // 平均抖动延迟= 
-      audio_stats.audio_delay = audio_stats.relative_packet_arrival_delay;
+      RTC_LOG(DEBUG) << audio_stats.audio_delay;
 
     }
     // 统计整体丢包数
@@ -653,7 +638,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     video_stats.bytes_received = inbound_video->bytes_received.ValueOrDefault(0);
     video_stats.header_bytes_received = inbound_video->header_bytes_received.ValueOrDefault(0);
     video_stats.jitter_buffer_emitted_count = inbound_video->jitter_buffer_emitted_count.ValueOrDefault(0);
-    video_stats.jitter = inbound_video->jitter.ValueOrDefault(0);
+    video_stats.jitter = inbound_video->jitter.ValueOrDefault(0) * 1000;
     video_stats.jitter_buffer_delay = range_operation(inbound_video->jitter_buffer_delay.ValueOrDefault(0), JITTER_BUFFER_DELAY_MIN, JITTER_BUFFER_DELAY_MAX);
     video_stats.packets_lost = inbound_video->packets_lost.ValueOrDefault(0);
     video_stats.frames_per_second = inbound_video->frames_per_second.ValueOrDefault(0);

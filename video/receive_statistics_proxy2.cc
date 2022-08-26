@@ -62,7 +62,7 @@ const int kRateStatisticsWindowSizeMs = 1000;
 // values above - in the map.
 const int kMaxCommonInterframeDelayMs = 500;
 
-const int kInterframeCatonThreshold = 600;
+const int kInterframeCatonThreshold = 100;
 
 const char* UmaPrefixForContentType(VideoContentType content_type) {
   if (videocontenttypehelpers::IsScreenshare(content_type))

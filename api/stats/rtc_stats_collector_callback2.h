@@ -6,6 +6,7 @@
 #include <string>
 #include <mutex>
 
+
 enum NetworkQuality { 
   kPoor,                  // 质量很差
   kNormal,                // 质量一般
@@ -13,6 +14,16 @@ enum NetworkQuality {
   kExcellent,             // 质量很好
   kUnknown                // 状态未知
 };
+
+struct RTCICECandidate {
+  std::string network_type;
+  std::string ip;
+  std::string address;
+  int32_t port;
+  std::string protocol;
+  std::string candidate_type;
+};
+
 
 // 编码器参数
 struct RTCCodec {
@@ -71,7 +82,7 @@ struct RTCVideoOutBandStats {
   uint32_t frame_height = 0;                 // 高
   uint32_t frames_encoded = 0;               // 编码帧数
   uint32_t frames_sent = 0;                  // 发送帧数
-  uint32_t fir_count = 0;					 // 接收到fir关键帧请求总数			
+  uint32_t fir_count = 0;					 // 接收到fir关键帧请求总数
   uint32_t pli_count = 0;					 // 接收到pli关键帧请求总数
   uint32_t nack_count = 0;					 // nack总数
   uint64_t packets_sent = 0;				 // 发包总数
@@ -111,6 +122,7 @@ struct RTCOutBandStats {
   int64_t timestamp = 0;
   // RTCIceCandidatePairStats
   double available_outgoing_bitrate = 0;                // 下行带宽评估
+  uint64_t responses_received = 0;						// 通道Stun binding response
   // RTCTransportStats
   uint64_t bytes_sent = 0;                              // transport bytesSent
 
@@ -118,8 +130,12 @@ struct RTCOutBandStats {
   double bitrate_send = 0;								// 上行码率KB/s
   uint64_t packets_sent = 0;							// audio + video
   uint64_t packets_lost = 0;							// audio lost + video lost
+
   RTCOutBoundNetworkQuality quailty_parameter;			// 质量参数
   NetworkQuality network_quality = kNormal;				// 质量评级
+
+  RTCICECandidate remote_candidate;						// ice信息
+  RTCICECandidate local_candidate;						// ice信息
 
   std::map<std::string, RTCAudioOutBandStats> audios; 
   std::map<std::string, RTCVideoOutBandStats> videos;  
@@ -236,16 +252,22 @@ struct RTCInBandStats {
   // RTCRTPStreamStats 
   int64_t timestamp = 0;
   // RTCTransportStats
-  uint64_t bytes_recv = 0;     // transport bytesSent
+  uint64_t bytes_recv = 0;									// transport bytesSent
+  // RTCIceCandidatePairStats
+  uint64_t responses_received = 0;							// 通道Stun binding response
   // calculate
-  double bitrate_recv = 0;    // 下行码率
-  uint64_t packets_received = 0;  // transport packetsSent
+  double bitrate_recv = 0;									// 下行码率
+  uint64_t packets_received = 0;							// transport packetsSent
   uint64_t packets_lost = 0;
+ 
   RTCInBoundNetworkQuality quailty_parameter;
   NetworkQuality network_quality = kNormal;
 
-  std::map<std::string, RTCAudioInBandStats> audios;  // bitrate
-  std::map<std::string, RTCVideoInBandStats> videos;  //
+  RTCICECandidate remote_candidate;							// ice信息
+  RTCICECandidate local_candidate;							// ice信息
+
+  std::map<std::string, RTCAudioInBandStats> audios;  
+  std::map<std::string, RTCVideoInBandStats> videos;
 };
 
 namespace webrtc {
@@ -280,6 +302,7 @@ class RTCOutBoundStatsCollectorCallBack : public RTCStatsCollectorCallback {
   std::map<std::string, const webrtc::RTCTransportStats*> transport_map;
 
   std::map<std::string, const webrtc::RTCIceCandidatePairStats*> candidate_pair_map;
+  std::map<std::string, const webrtc::RTCIceCandidateStats*> ice_candidate_map;
 
   std::map<std::string, const webrtc::RTCMediaStreamTrackStats*> track_map;
 
@@ -317,6 +340,7 @@ private:
   std::map<std::string, const webrtc::RTCTransportStats*> transport_map;
 
   std::map<std::string, const webrtc::RTCIceCandidatePairStats*> candidate_pair_map;
+  std::map<std::string, const webrtc::RTCIceCandidateStats*> ice_candidate_map;
 
   std::map<std::string, const webrtc::RTCMediaStreamTrackStats*> track_map;
 

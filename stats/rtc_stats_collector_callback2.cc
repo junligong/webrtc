@@ -144,6 +144,17 @@ void RTCOutBoundStatsCollectorCallBack::OnStatsDelivered(const rtc::scoped_refpt
       }
     }
 
+    // ice candidate
+    auto local_ice_candidates = report->GetStatsOfType<webrtc::RTCLocalIceCandidateStats>();
+    for (auto local_ice_candidate : local_ice_candidates) {
+      ice_candidate_map[local_ice_candidate->id()] = local_ice_candidate;
+    }
+
+    auto remote_ice_candidates = report->GetStatsOfType<webrtc::RTCRemoteIceCandidateStats>();
+    for (auto remote_ice_candidate : remote_ice_candidates) {
+      ice_candidate_map[remote_ice_candidate->id()] = remote_ice_candidate;
+    }
+
     // 媒体轨道
     auto media_tracks = report->GetStatsOfType<webrtc::RTCMediaStreamTrackStats>();
     for (auto media_track : media_tracks) {
@@ -164,17 +175,42 @@ void RTCOutBoundStatsCollectorCallBack::Initialization() {
   transport_map.clear();
   candidate_pair_map.clear();
   track_map.clear();
+  ice_candidate_map.clear();
+  candidate_pair_map.clear();
 }
 
 void RTCOutBoundStatsCollectorCallBack::CalcStats() {
 
   RTCOutBandStats stats;
   // 读取带宽、rtt
-  if (!candidate_pair_map.empty() && candidate_pair_map.begin()->second) {
-    stats.available_outgoing_bitrate = candidate_pair_map.begin()->second->available_outgoing_bitrate.ValueOrDefault(0) / 1000.0;
-    stats.quailty_parameter.round_trip_time = candidate_pair_map.begin()->second->current_round_trip_time.ValueOrDefault(0) * 1000;
-    if (stats.quailty_parameter.round_trip_time == 0) {
-      stats.quailty_parameter.round_trip_time = stats_.quailty_parameter.round_trip_time;
+  if (!candidate_pair_map.empty()) {
+    const webrtc::RTCIceCandidatePairStats* ice_candidate_stats = candidate_pair_map.begin()->second;
+    if (ice_candidate_stats != nullptr){
+      stats.available_outgoing_bitrate = ice_candidate_stats->available_outgoing_bitrate.ValueOrDefault(0) / 1000.0;
+      stats.quailty_parameter.round_trip_time = ice_candidate_stats->current_round_trip_time.ValueOrDefault(0) * 1000;
+      stats.responses_received = ice_candidate_stats->responses_received.ValueOrDefault(0);
+      if (stats.quailty_parameter.round_trip_time == 0) {
+        stats.quailty_parameter.round_trip_time = stats_.quailty_parameter.round_trip_time;
+      }
+      auto remote_candidate = ice_candidate_map.find(ice_candidate_stats->remote_candidate_id.ValueOrDefault(""));
+      if (remote_candidate != ice_candidate_map.end() && remote_candidate->second) {
+        stats.remote_candidate.network_type = remote_candidate->second->network_type.ValueOrDefault("");
+        stats.remote_candidate.ip = remote_candidate->second->ip.ValueOrDefault("");
+        stats.remote_candidate.address = remote_candidate->second->address.ValueOrDefault("");
+        stats.remote_candidate.port = remote_candidate->second->port.ValueOrDefault(0);
+        stats.remote_candidate.protocol = remote_candidate->second->protocol.ValueOrDefault("");
+        stats.remote_candidate.candidate_type = remote_candidate->second->candidate_type.ValueOrDefault("");
+      }
+
+      auto local_candidate = ice_candidate_map.find(ice_candidate_stats->local_candidate_id.ValueOrDefault(""));
+      if (local_candidate != ice_candidate_map.end() && local_candidate->second){
+        stats.local_candidate.network_type = local_candidate->second->network_type.ValueOrDefault("");
+        stats.local_candidate.ip = local_candidate->second->ip.ValueOrDefault("");
+        stats.local_candidate.address = local_candidate->second->address.ValueOrDefault("");
+        stats.local_candidate.port = local_candidate->second->port.ValueOrDefault(0);
+        stats.local_candidate.protocol = local_candidate->second->protocol.ValueOrDefault("");
+        stats.local_candidate.candidate_type = local_candidate->second->candidate_type.ValueOrDefault("");
+      }
     }
   }
   // 遍历上行音频流
@@ -422,6 +458,7 @@ RTCInBandStats RTCInBoundStatsCollectorCallBack::GetInBandStats() const {
 
 void RTCInBoundStatsCollectorCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) {
   Initialization();
+
   // 下行
   auto intbounds = report->GetStatsOfType<webrtc::RTCInboundRTPStreamStats>();
   for (const webrtc::RTCInboundRTPStreamStats* intbound : intbounds) {
@@ -499,6 +536,18 @@ void RTCInBoundStatsCollectorCallBack::OnStatsDelivered(const rtc::scoped_refptr
       candidate_pair_map[candidate_pair->id()] = candidate_pair;
     }
   }
+
+  // ice candidate
+  auto local_ice_candidates = report->GetStatsOfType<webrtc::RTCLocalIceCandidateStats>();
+  for (auto local_ice_candidate : local_ice_candidates) {
+    ice_candidate_map[local_ice_candidate->id()] = local_ice_candidate;
+  }
+
+  auto remote_ice_candidates = report->GetStatsOfType<webrtc::RTCRemoteIceCandidateStats>();
+  for (auto remote_ice_candidate : remote_ice_candidates) {
+    ice_candidate_map[remote_ice_candidate->id()] = remote_ice_candidate;
+  }
+
   // 媒体轨道
   auto media_tracks =  report->GetStatsOfType<webrtc::RTCMediaStreamTrackStats>();
   for (auto media_track : media_tracks) {
@@ -518,16 +567,41 @@ void RTCInBoundStatsCollectorCallBack::Initialization() {
   transport_map.clear();
   track_map.clear();
   codec_map.clear();
+  ice_candidate_map.clear();
+  candidate_pair_map.clear();
 }
 
 void RTCInBoundStatsCollectorCallBack::CalcStats() {
   RTCInBandStats stats;
   // 读取rtt
-  if (!candidate_pair_map.empty() && candidate_pair_map.begin()->second) {
-    stats.quailty_parameter.round_trip_time = candidate_pair_map.begin()->second->current_round_trip_time.ValueOrDefault(0) * 1000;
+  if (!candidate_pair_map.empty()) {
+    const webrtc::RTCIceCandidatePairStats* ice_candidate_stats = candidate_pair_map.begin()->second;
+    if (ice_candidate_stats) {
+      stats.quailty_parameter.round_trip_time = ice_candidate_stats->current_round_trip_time.ValueOrDefault(0) * 1000;
+      stats.responses_received = ice_candidate_stats->responses_received.ValueOrDefault(0);
+      if (stats.quailty_parameter.round_trip_time == 0) {
+        stats.quailty_parameter.round_trip_time = stats_.quailty_parameter.round_trip_time;
+      }
 
-    if (stats.quailty_parameter.round_trip_time == 0){
-      stats.quailty_parameter.round_trip_time = stats_.quailty_parameter.round_trip_time;
+      auto remote_candidate = ice_candidate_map.find(ice_candidate_stats->remote_candidate_id.ValueOrDefault(""));
+      if (remote_candidate != ice_candidate_map.end() && remote_candidate->second) {
+        stats.remote_candidate.network_type = remote_candidate->second->network_type.ValueOrDefault("");
+        stats.remote_candidate.ip = remote_candidate->second->ip.ValueOrDefault("");
+        stats.remote_candidate.address = remote_candidate->second->address.ValueOrDefault("");
+        stats.remote_candidate.port = remote_candidate->second->port.ValueOrDefault(0);
+        stats.remote_candidate.protocol = remote_candidate->second->protocol.ValueOrDefault("");
+        stats.remote_candidate.candidate_type = remote_candidate->second->candidate_type.ValueOrDefault("");
+      }
+
+      auto local_candidate = ice_candidate_map.find(*ice_candidate_stats->local_candidate_id);
+      if (local_candidate != ice_candidate_map.end() && local_candidate->second) {
+        stats.local_candidate.network_type = local_candidate->second->network_type.ValueOrDefault("");
+        stats.local_candidate.ip = local_candidate->second->ip.ValueOrDefault("");
+        stats.local_candidate.address = local_candidate->second->address.ValueOrDefault("");
+        stats.local_candidate.port = local_candidate->second->port.ValueOrDefault(0);
+        stats.local_candidate.protocol = local_candidate->second->protocol.ValueOrDefault("");
+        stats.local_candidate.candidate_type = local_candidate->second->candidate_type.ValueOrDefault("");
+      }
     }
   }
 
@@ -593,7 +667,7 @@ void RTCInBoundStatsCollectorCallBack::CalcStats() {
     }
 
      // 远端音频信息
-    if (!inbound_audio->remote_id.is_defined()) {
+    if (inbound_audio->remote_id.is_defined()) {
       auto remote_audio = remote_outbound_audio_map.find(*inbound_audio->remote_id);
       if (remote_audio != remote_outbound_audio_map.end() && remote_audio->second) {
         audio_stats.remote_packets_sent = remote_audio->second->packets_sent.ValueOrDefault(0);

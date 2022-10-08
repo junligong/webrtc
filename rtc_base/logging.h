@@ -89,11 +89,13 @@ enum LoggingSeverity {
   LS_WARNING,
   LS_ERROR,
   LS_NONE,
+  LS_DEBUG,
   // Compatibility aliases, to be deleted.
   // TODO(bugs.webrtc.org/13362): Remove usage and delete.
   INFO = LS_INFO,
   WARNING = LS_WARNING,
-  LERROR = LS_ERROR
+  LERROR = LS_ERROR,
+  DEBUG = LS_DEBUG
 };
 
 // LogErrorContext assists in interpreting the meaning of an error value.

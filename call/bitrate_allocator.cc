@@ -382,6 +382,10 @@ void BitrateAllocator::OnNetworkEstimateChanged(TargetTransferRate msg) {
   last_non_zero_bitrate_bps_ =
       last_target_bps_ > 0 ? last_target_bps_ : last_non_zero_bitrate_bps_;
 
+
+  RTC_LOG(DEBUG) << "loss:" << msg.network_estimate.loss_rate_ratio
+                 << " bitrate:" << last_target_bps_;
+
   int loss_ratio_255 = msg.network_estimate.loss_rate_ratio * 255;
   last_fraction_loss_ =
       rtc::dchecked_cast<uint8_t>(rtc::SafeClamp(loss_ratio_255, 0, 255));

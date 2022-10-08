@@ -70,10 +70,20 @@ WindowsCommandLineArguments::WindowsCommandLineArguments() {
 }
 
 }  // namespace
+
+#define ALLOCCONSOLE \
+  {\
+    AllocConsole();\
+    freopen("CONOUT$", "a+", stdout);\
+  }
+
+
 int PASCAL wWinMain(HINSTANCE instance,
                     HINSTANCE prev_instance,
                     wchar_t* cmd_line,
                     int cmd_show) {
+
+  ALLOCCONSOLE
   rtc::WinsockInitializer winsock_init;
   rtc::PhysicalSocketServer ss;
   rtc::AutoSocketServerThread main_thread(&ss);

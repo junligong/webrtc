@@ -95,7 +95,7 @@ enum LoggingSeverity {
   INFO = LS_INFO,
   WARNING = LS_WARNING,
   LERROR = LS_ERROR,
-  DEBUG = LS_DEBUG
+  DEBUG = LS_DEBUG,
 };
 
 // LogErrorContext assists in interpreting the meaning of an error value.
